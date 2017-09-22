@@ -187,7 +187,7 @@ func (o *opCompleter) HandleCompleteSelect(r rune) (stayInMode bool) {
 			tmpChoise -= o.getMatrixSize()
 		}
 		o.candidateChoise = tmpChoise
-	case CharBackward:
+	case CharBackward, MetaShiftTab:
 		o.nextCandidate(-1)
 	case CharPrev:
 		colNum := 1

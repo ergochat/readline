@@ -354,6 +354,8 @@ func (o *Operation) ioloop() {
 			isUpdateHistory = false
 			o.history.Revert()
 			o.errchan <- &InterruptError{remain}
+		case MetaShiftTab:
+			// do nothing
 		default:
 			if o.search.IsSearchMode() {
 				o.search.SearchChar(r)
