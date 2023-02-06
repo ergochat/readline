@@ -12,11 +12,11 @@ import (
 type Terminal struct {
 	m         sync.Mutex
 	cfg       *Config
+	closeOnce sync.Once
+	closeErr  error
 	outchan   chan rune
-	closed    int32
 	stopChan  chan struct{}
 	kickChan  chan struct{}
-	wg        sync.WaitGroup
 	sleeping  int32
 
 	width     int                 // terminal width
@@ -105,11 +105,12 @@ func (t *Terminal) Readline() *Operation {
 
 // return rune(0) if meet EOF
 func (t *Terminal) GetRune() rune {
-	ch, ok := <-t.outchan
-	if !ok {
-		return rune(0)
+	select {
+	case ch := <-t.outchan:
+		return ch
+	case <-t.stopChan:
+		return 0
 	}
-	return ch
 }
 
 func (t *Terminal) KickRead() {
@@ -120,12 +121,6 @@ func (t *Terminal) KickRead() {
 }
 
 func (t *Terminal) ioloop() {
-	t.wg.Add(1)
-	defer func() {
-		t.wg.Done()
-		close(t.outchan)
-	}()
-
 	var (
 		isEscape       bool
 		isEscapeEx     bool
@@ -219,15 +214,11 @@ func (t *Terminal) Bell() {
 }
 
 func (t *Terminal) Close() error {
-	if atomic.SwapInt32(&t.closed, 1) != 0 {
-		return nil
-	}
-	if closer, ok := t.cfg.Stdin.(io.Closer); ok {
-		closer.Close()
-	}
-	close(t.stopChan)
-	t.wg.Wait()
-	return t.ExitRawMode()
+	t.closeOnce.Do(func() {
+		close(t.stopChan)
+		t.closeErr = t.ExitRawMode()
+	})
+	return t.closeErr
 }
 
 func (t *Terminal) GetConfig() *Config {
