@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"sync"
+	"sync/atomic"
 )
 
 var (
@@ -26,6 +27,8 @@ type Operation struct {
 	outchan chan []rune
 	errchan chan error
 	w       io.Writer
+	wrapOut atomic.Pointer[wrapWriter]
+	wrapErr atomic.Pointer[wrapWriter]
 
 	isPrompting bool       // true when prompt written and waiting for input
 
@@ -396,11 +399,11 @@ func (o *Operation) ioloop() {
 }
 
 func (o *Operation) Stderr() io.Writer {
-	return &wrapWriter{target: o.GetConfig().Stderr, o: o}
+	return o.wrapErr.Load()
 }
 
 func (o *Operation) Stdout() io.Writer {
-	return &wrapWriter{target: o.GetConfig().Stdout, o: o}
+	return o.wrapOut.Load()
 }
 
 func (o *Operation) String() (string, error) {
@@ -520,6 +523,9 @@ func (op *Operation) SetConfig(cfg *Config) (*Config, error) {
 	op.SetPrompt(cfg.Prompt)
 	op.SetMaskRune(cfg.MaskRune)
 	op.buf.SetConfig(cfg)
+
+	op.wrapOut.Store(&wrapWriter{target: cfg.Stdout, o: op})
+	op.wrapErr.Store(&wrapWriter{target: cfg.Stderr, o: op})
 
 	if cfg.opHistory == nil {
 		op.SetHistoryPath(cfg.HistoryFile)
