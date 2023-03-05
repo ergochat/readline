@@ -23,7 +23,6 @@ import (
 )
 
 type Instance struct {
-	Config    *Config
 	Terminal  *Terminal
 	Operation *Operation
 
@@ -172,18 +171,20 @@ func (c *Config) SetPainter(p Painter) {
 }
 
 func NewEx(cfg *Config) (*Instance, error) {
+	if err := cfg.Init(); err != nil {
+		return nil, err
+	}
 	t, err := NewTerminal(cfg)
 	if err != nil {
 		return nil, err
 	}
-	rl := t.Readline()
+	o := NewOperation(t, cfg)
 	if cfg.Painter == nil {
 		cfg.Painter = &defaultPainter{}
 	}
 	return &Instance{
-		Config:    cfg,
 		Terminal:  t,
-		Operation: rl,
+		Operation: o,
 	}, nil
 }
 
@@ -321,15 +322,13 @@ func (i *Instance) WriteStdin(val []byte) (int, error) {
 	return i.Terminal.WriteStdin(val)
 }
 
-func (i *Instance) SetConfig(cfg *Config) *Config {
-	if i.Config == cfg {
-		return cfg
+func (i *Instance) SetConfig(cfg *Config) error {
+	if err := cfg.Init(); err != nil {
+		return err
 	}
-	old := i.Config
-	i.Config = cfg
 	i.Operation.SetConfig(cfg)
-	i.Terminal.SetConfig(cfg)
-	return old
+	i.Terminal.setConfig(cfg)
+	return nil
 }
 
 func (i *Instance) Refresh() {
