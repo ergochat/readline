@@ -99,7 +99,7 @@ func (t *Terminal) Readline() *Operation {
 }
 
 // return rune(0) if meet EOF
-func (t *Terminal) ReadRune() rune {
+func (t *Terminal) GetRune() rune {
 	ch, ok := <-t.outchan
 	if !ok {
 		return rune(0)
