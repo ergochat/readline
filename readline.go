@@ -170,7 +170,8 @@ func (c *Config) SetPainter(p Painter) {
 	c.Painter = p
 }
 
-func NewEx(cfg *Config) (*Instance, error) {
+// NewFromConfig creates a readline instance from the specified configuration.
+func NewFromConfig(cfg *Config) (*Instance, error) {
 	if err := cfg.Init(); err != nil {
 		return nil, err
 	}
@@ -188,6 +189,10 @@ func NewEx(cfg *Config) (*Instance, error) {
 	}, nil
 }
 
+// NewEx is an alias for NewFromConfig, for compatibility.
+var NewEx = NewFromConfig
+
+// New creates a readline instance with default configuration.
 func New(prompt string) (*Instance, error) {
 	return NewEx(&Config{Prompt: prompt})
 }
