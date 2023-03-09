@@ -152,6 +152,9 @@ func (c *Config) Init() error {
 	if c.FuncOnWidthChanged == nil {
 		c.FuncOnWidthChanged = DefaultOnSizeChanged
 	}
+	if c.Painter == nil {
+		c.Painter = &defaultPainter{}
+	}
 
 	return nil
 }
@@ -166,10 +169,6 @@ func (c *Config) SetListener(f func(line []rune, pos int, key rune) (newLine []r
 	c.Listener = FuncListener(f)
 }
 
-func (c *Config) SetPainter(p Painter) {
-	c.Painter = p
-}
-
 // NewFromConfig creates a readline instance from the specified configuration.
 func NewFromConfig(cfg *Config) (*Instance, error) {
 	if err := cfg.Init(); err != nil {
@@ -180,9 +179,6 @@ func NewFromConfig(cfg *Config) (*Instance, error) {
 		return nil, err
 	}
 	o := NewOperation(t, cfg)
-	if cfg.Painter == nil {
-		cfg.Painter = &defaultPainter{}
-	}
 	return &Instance{
 		Terminal:  t,
 		Operation: o,
