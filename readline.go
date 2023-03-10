@@ -190,7 +190,7 @@ var NewEx = NewFromConfig
 
 // New creates a readline instance with default configuration.
 func New(prompt string) (*Instance, error) {
-	return NewEx(&Config{Prompt: prompt})
+	return NewFromConfig(&Config{Prompt: prompt})
 }
 
 func (i *Instance) ResetHistory() {

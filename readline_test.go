@@ -6,7 +6,7 @@ import (
 )
 
 func TestRace(t *testing.T) {
-	rl, err := NewEx(&Config{})
+	rl, err := NewFromConfig(&Config{})
 	if err != nil {
 		t.Fatal(err)
 		return

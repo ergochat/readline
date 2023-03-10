@@ -453,7 +453,7 @@ func HandleConn(cfg Config, conn net.Conn) (*Instance, error) {
 	}
 	r.HandleConfig(&cfg)
 
-	rl, err := NewEx(&cfg)
+	rl, err := NewFromConfig(&cfg)
 	if err != nil {
 		return nil, err
 	}
