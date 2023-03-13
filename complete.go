@@ -149,7 +149,7 @@ func (o *opCompleter) HandleCompleteSelect(r rune) (stayInMode bool) {
 	switch r {
 	case CharEnter, CharCtrlJ:
 		next = false
-		o.op.buf.WriteRunes(o.op.candidate[o.op.candidateChoise])
+		o.op.buf.WriteRunes(o.candidate[o.candidateChoise])
 		o.ExitCompleteMode(false)
 	case CharLineStart:
 		if o.candidateColNum > 1 {
