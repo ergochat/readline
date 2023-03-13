@@ -246,24 +246,6 @@ func (i *Instance) ReadPassword(prompt string) ([]byte, error) {
 	return i.operation.Password(prompt)
 }
 
-type Result struct {
-	Line  string
-	Error error
-}
-
-func (l *Result) CanContinue() bool {
-	return len(l.Line) != 0 && l.Error == ErrInterrupt
-}
-
-func (l *Result) CanBreak() bool {
-	return !l.CanContinue() && l.Error != nil
-}
-
-func (i *Instance) Line() *Result {
-	ret, err := i.Readline()
-	return &Result{ret, err}
-}
-
 // err is one of (nil, io.EOF, readline.ErrInterrupt)
 func (i *Instance) Readline() (string, error) {
 	return i.operation.String()
