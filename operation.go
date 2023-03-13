@@ -35,7 +35,7 @@ type Operation struct {
 	history *opHistory
 	search  *opSearch
 	completer *opCompleter
-	*opPassword
+	password *opPassword
 	*opVim
 }
 
@@ -97,7 +97,7 @@ func NewOperation(t *Terminal, cfg *Config) *Operation {
 	op.SetConfig(cfg)
 	op.opVim = newVimMode(op)
 	op.completer = newOpCompleter(op.buf.w, op)
-	op.opPassword = newOpPassword(op)
+	op.password = newOpPassword(op)
 	op.cfg.FuncOnWidthChanged(t.OnSizeChange)
 	go op.ioloop()
 	return op
@@ -462,14 +462,14 @@ func (o *Operation) PasswordEx(prompt string, l Listener) ([]byte, error) {
 }
 
 func (o *Operation) GenPasswordConfig() *Config {
-	return o.opPassword.PasswordConfig()
+	return o.password.PasswordConfig()
 }
 
 func (o *Operation) PasswordWithConfig(cfg *Config) ([]byte, error) {
-	if err := o.opPassword.EnterPasswordMode(cfg); err != nil {
+	if err := o.password.EnterPasswordMode(cfg); err != nil {
 		return nil, err
 	}
-	defer o.opPassword.ExitPasswordMode()
+	defer o.password.ExitPasswordMode()
 	return o.Slice()
 }
 
