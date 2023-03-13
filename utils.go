@@ -271,19 +271,19 @@ func GetInt(s []string, def int) int {
 	return c
 }
 
-type RawMode struct {
+type rawModeHandler struct {
 	sync.Mutex
 	state *State
 }
 
-func (r *RawMode) Enter() (err error) {
+func (r *rawModeHandler) Enter() (err error) {
 	r.Lock()
 	defer r.Unlock()
 	r.state, err = MakeRaw(GetStdin())
 	return err
 }
 
-func (r *RawMode) Exit() error {
+func (r *rawModeHandler) Exit() error {
 	r.Lock()
 	defer r.Unlock()
 	if r.state == nil {

@@ -146,7 +146,7 @@ func (c *Config) Init() error {
 	if c.FuncIsTerminal == nil {
 		c.FuncIsTerminal = DefaultIsTerminal
 	}
-	rm := new(RawMode)
+	rm := new(rawModeHandler)
 	if c.FuncMakeRaw == nil {
 		c.FuncMakeRaw = rm.Enter
 	}
