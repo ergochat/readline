@@ -3,43 +3,43 @@ package readline
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"strings"
 	"sync"
 	"sync/atomic"
 )
 
 type Terminal struct {
-	m         sync.Mutex
-	cfg       *Config
-	outchan   chan rune
-	closed    int32
-	stopChan  chan struct{}
-	kickChan  chan struct{}
-	wg        sync.WaitGroup
-	sleeping  int32
+	cfg        atomic.Pointer[Config]
+	dimensions atomic.Pointer[termDimensions]
+	closeOnce  sync.Once
+	closeErr   error
+	outchan    chan rune
+	stopChan   chan struct{}
+	kickChan   chan struct{}
+	sleeping   int32
 
-	width     int                 // terminal width
-	height    int                 // terminal height
-	sizeChan  chan string
+	sizeChan chan string
+}
+
+// termDimensions stores the terminal width and height (-1 means unknown)
+type termDimensions struct {
+	width  int
+	height int
 }
 
 func NewTerminal(cfg *Config) (*Terminal, error) {
-	if err := cfg.Init(); err != nil {
-		return nil, err
-	}
 	if cfg.useInteractive() {
-		if ansiErr := enableANSI(); ansiErr != nil  {
+		if ansiErr := enableANSI(); ansiErr != nil {
 			return nil, fmt.Errorf("Could not enable ANSI escapes: %w", ansiErr)
 		}
 	}
 	t := &Terminal{
-		cfg:      cfg,
 		kickChan: make(chan struct{}, 1),
 		outchan:  make(chan rune),
 		stopChan: make(chan struct{}, 1),
 		sizeChan: make(chan string, 1),
 	}
+	t.cfg.Store(cfg)
 	// Get and cache the current terminal size.
 	t.OnSizeChange()
 
@@ -62,26 +62,21 @@ func (t *Terminal) SleepToResume() {
 }
 
 func (t *Terminal) EnterRawMode() (err error) {
-	return t.cfg.FuncMakeRaw()
+	return t.cfg.Load().FuncMakeRaw()
 }
 
 func (t *Terminal) ExitRawMode() (err error) {
-	return t.cfg.FuncExitRaw()
+	return t.cfg.Load().FuncExitRaw()
 }
 
 func (t *Terminal) Write(b []byte) (int, error) {
-	return t.cfg.Stdout.Write(b)
+	return t.cfg.Load().Stdout.Write(b)
 }
 
 // WriteStdin prefill the next Stdin fetch
 // Next time you call ReadLine() this value will be writen before the user input
 func (t *Terminal) WriteStdin(b []byte) (int, error) {
-	return t.cfg.StdinWriter.Write(b)
-}
-
-type termSize struct {
-	left int
-	top  int
+	return t.cfg.Load().StdinWriter.Write(b)
 }
 
 func (t *Terminal) GetOffset(f func(offset string)) {
@@ -91,25 +86,14 @@ func (t *Terminal) GetOffset(f func(offset string)) {
 	SendCursorPosition(t)
 }
 
-func (t *Terminal) Print(s string) {
-	fmt.Fprintf(t.cfg.Stdout, "%s", s)
-}
-
-func (t *Terminal) PrintRune(r rune) {
-	fmt.Fprintf(t.cfg.Stdout, "%c", r)
-}
-
-func (t *Terminal) Readline() *Operation {
-	return NewOperation(t, t.cfg)
-}
-
 // return rune(0) if meet EOF
 func (t *Terminal) GetRune() rune {
-	ch, ok := <-t.outchan
-	if !ok {
-		return rune(0)
+	select {
+	case ch := <-t.outchan:
+		return ch
+	case <-t.stopChan:
+		return 0
 	}
-	return ch
 }
 
 func (t *Terminal) KickRead() {
@@ -120,12 +104,6 @@ func (t *Terminal) KickRead() {
 }
 
 func (t *Terminal) ioloop() {
-	t.wg.Add(1)
-	defer func() {
-		t.wg.Done()
-		close(t.outchan)
-	}()
-
 	var (
 		isEscape       bool
 		isEscapeEx     bool
@@ -133,7 +111,7 @@ func (t *Terminal) ioloop() {
 		expectNextChar bool
 	)
 
-	buf := bufio.NewReader(t.getStdin())
+	buf := bufio.NewReader(t.cfg.Load().Stdin)
 	for {
 		if !expectNextChar {
 			select {
@@ -200,7 +178,7 @@ func (t *Terminal) ioloop() {
 		expectNextChar = true
 		switch r {
 		case CharEsc:
-			if t.cfg.VimMode {
+			if t.cfg.Load().VimMode {
 				t.outchan <- r
 				break
 			}
@@ -219,51 +197,30 @@ func (t *Terminal) Bell() {
 }
 
 func (t *Terminal) Close() error {
-	if atomic.SwapInt32(&t.closed, 1) != 0 {
-		return nil
-	}
-	if closer, ok := t.cfg.Stdin.(io.Closer); ok {
-		closer.Close()
-	}
-	close(t.stopChan)
-	t.wg.Wait()
-	return t.ExitRawMode()
+	t.closeOnce.Do(func() {
+		close(t.stopChan)
+		t.closeErr = t.ExitRawMode()
+	})
+	return t.closeErr
 }
 
-func (t *Terminal) GetConfig() *Config {
-	t.m.Lock()
-	cfg := *t.cfg
-	t.m.Unlock()
-	return &cfg
-}
-
-func (t *Terminal) getStdin() io.Reader {
-	t.m.Lock()
-	r := t.cfg.Stdin
-	t.m.Unlock()
-	return r
-}
-
-func (t *Terminal) SetConfig(c *Config) error {
-	if err := c.Init(); err != nil {
-		return err
-	}
-	t.m.Lock()
-	t.cfg = c
-	t.m.Unlock()
+func (t *Terminal) setConfig(c *Config) error {
+	t.cfg.Store(c)
 	return nil
 }
 
 // OnSizeChange gets the current terminal size and caches it
 func (t *Terminal) OnSizeChange() {
-	t.m.Lock()
-	defer t.m.Unlock()
-	t.width, t.height = t.cfg.FuncGetSize()
+	cfg := t.cfg.Load()
+	width, height := cfg.FuncGetSize()
+	t.dimensions.Store(&termDimensions{
+		width:  width,
+		height: height,
+	})
 }
 
 // GetWidthHeight returns the cached width, height values from the terminal
 func (t *Terminal) GetWidthHeight() (width, height int) {
-	t.m.Lock()
-	defer t.m.Unlock()
-	return t.width, t.height
+	dimensions := t.dimensions.Load()
+	return dimensions.width, dimensions.height
 }

@@ -2,10 +2,18 @@ package readline
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
-
-	"github.com/chzyer/test"
 )
+
+// imitates github.com/chzyer/test test.Equals
+// err not used atm
+func testEqual(t *testing.T, actual interface{}, expected interface{}, err error) {
+	_ = err
+	if !reflect.DeepEqual(actual, expected) {
+		t.Errorf("got %v, expected %v", actual, expected)
+	}
+}
 
 func rs(s [][]rune) []string {
 	ret := make([]string, len(s))
@@ -24,7 +32,6 @@ func sr(s ...string) [][]rune {
 }
 
 func TestRetSegment(t *testing.T) {
-	defer test.New(t)
 	// a
 	// |- a1
 	// |--- a11
@@ -50,13 +57,13 @@ func TestRetSegment(t *testing.T) {
 	}
 	for idx, r := range ret {
 		ret, pos := RetSegment(r.Segments, r.Cands, r.idx)
-		test.Equal(ret, r.Ret, fmt.Errorf("%v", idx))
-		test.Equal(pos, r.pos, fmt.Errorf("%v", idx))
+
+		testEqual(t, ret, r.Ret, fmt.Errorf("%v", idx))
+		testEqual(t, pos, r.pos, fmt.Errorf("%v", idx))
 	}
 }
 
 func TestSplitSegment(t *testing.T) {
-	defer test.New(t)
 	// a
 	// |- a1
 	// |--- a11
@@ -80,8 +87,8 @@ func TestSplitSegment(t *testing.T) {
 
 	for i, r := range ret {
 		ret, idx := SplitSegment([]rune(r.Line), r.Pos)
-		test.Equal(rs(ret), rs(r.Segments), fmt.Errorf("%v", i))
-		test.Equal(idx, r.Idx, fmt.Errorf("%v", i))
+		testEqual(t, rs(ret), rs(r.Segments), fmt.Errorf("%v", i))
+		testEqual(t, idx, r.Idx, fmt.Errorf("%v", i))
 	}
 }
 
@@ -91,8 +98,6 @@ type Tree struct {
 }
 
 func TestSegmentCompleter(t *testing.T) {
-	defer test.New(t)
-
 	tree := Tree{"", []Tree{
 		{"a", []Tree{
 			{"a1", []Tree{
@@ -161,7 +166,7 @@ func TestSegmentCompleter(t *testing.T) {
 	}
 	for i, r := range ret {
 		newLine, length := s.Do([]rune(r.Line), r.Pos)
-		test.Equal(rs(newLine), rs(r.Ret), fmt.Errorf("%v", i))
-		test.Equal(length, r.Share, fmt.Errorf("%v", i))
+		testEqual(t, rs(newLine), rs(r.Ret), fmt.Errorf("%v", i))
+		testEqual(t, length, r.Share, fmt.Errorf("%v", i))
 	}
 }

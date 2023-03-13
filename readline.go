@@ -19,12 +19,15 @@ package readline
 
 import (
 	"io"
+	"sync"
 )
 
 type Instance struct {
-	Config    *Config
 	Terminal  *Terminal
 	Operation *Operation
+
+	closeOnce sync.Once
+	closeErr  error
 }
 
 type Config struct {
@@ -58,7 +61,7 @@ type Config struct {
 	// Function that returns width, height of the terminal or -1,-1 if unknown
 	FuncGetSize     func() (width int, height int)
 
-	Stdin       io.ReadCloser
+	Stdin       io.Reader
 	StdinWriter io.Writer
 	Stdout      io.Writer
 	Stderr      io.Writer
@@ -100,10 +103,11 @@ func (c *Config) Init() error {
 	}
 	c.inited = true
 	if c.Stdin == nil {
-		c.Stdin = NewCancelableStdin(Stdin)
+		c.Stdin = Stdin
 	}
 
-	c.Stdin, c.StdinWriter = NewFillableStdin(c.Stdin)
+	fillableStdin := NewFillableStdin(c.Stdin)
+	c.Stdin, c.StdinWriter = fillableStdin, fillableStdin
 
 	if c.Stdout == nil {
 		c.Stdout = Stdout
@@ -148,6 +152,9 @@ func (c *Config) Init() error {
 	if c.FuncOnWidthChanged == nil {
 		c.FuncOnWidthChanged = DefaultOnSizeChanged
 	}
+	if c.Painter == nil {
+		c.Painter = &defaultPainter{}
+	}
 
 	return nil
 }
@@ -162,28 +169,28 @@ func (c *Config) SetListener(f func(line []rune, pos int, key rune) (newLine []r
 	c.Listener = FuncListener(f)
 }
 
-func (c *Config) SetPainter(p Painter) {
-	c.Painter = p
-}
-
-func NewEx(cfg *Config) (*Instance, error) {
+// NewFromConfig creates a readline instance from the specified configuration.
+func NewFromConfig(cfg *Config) (*Instance, error) {
+	if err := cfg.Init(); err != nil {
+		return nil, err
+	}
 	t, err := NewTerminal(cfg)
 	if err != nil {
 		return nil, err
 	}
-	rl := t.Readline()
-	if cfg.Painter == nil {
-		cfg.Painter = &defaultPainter{}
-	}
+	o := NewOperation(t, cfg)
 	return &Instance{
-		Config:    cfg,
 		Terminal:  t,
-		Operation: rl,
+		Operation: o,
 	}, nil
 }
 
+// NewEx is an alias for NewFromConfig, for compatibility.
+var NewEx = NewFromConfig
+
+// New creates a readline instance with default configuration.
 func New(prompt string) (*Instance, error) {
-	return NewEx(&Config{Prompt: prompt})
+	return NewFromConfig(&Config{Prompt: prompt})
 }
 
 func (i *Instance) ResetHistory() {
@@ -280,12 +287,11 @@ func (i *Instance) ReadSlice() ([]byte, error) {
 // if there has a pending reading operation, that reading will be interrupted.
 // so you can capture the signal and call Instance.Close(), it's thread-safe.
 func (i *Instance) Close() error {
-	i.Config.Stdin.Close()
-	i.Operation.Close()
-	if err := i.Terminal.Close(); err != nil {
-		return err
-	}
-	return nil
+	i.closeOnce.Do(func() {
+		i.Operation.Close()
+		i.closeErr = i.Terminal.Close()
+	})
+	return i.closeErr
 }
 
 // call CaptureExitSignal when you want readline exit gracefully.
@@ -317,15 +323,13 @@ func (i *Instance) WriteStdin(val []byte) (int, error) {
 	return i.Terminal.WriteStdin(val)
 }
 
-func (i *Instance) SetConfig(cfg *Config) *Config {
-	if i.Config == cfg {
-		return cfg
+func (i *Instance) SetConfig(cfg *Config) error {
+	if err := cfg.Init(); err != nil {
+		return err
 	}
-	old := i.Config
-	i.Config = cfg
 	i.Operation.SetConfig(cfg)
-	i.Terminal.SetConfig(cfg)
-	return old
+	i.Terminal.setConfig(cfg)
+	return nil
 }
 
 func (i *Instance) Refresh() {
