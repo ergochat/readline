@@ -242,10 +242,6 @@ func (i *Instance) ReadPasswordWithConfig(cfg *Config) ([]byte, error) {
 	return i.operation.PasswordWithConfig(cfg)
 }
 
-func (i *Instance) ReadPasswordEx(prompt string, l Listener) ([]byte, error) {
-	return i.operation.PasswordEx(prompt, l)
-}
-
 func (i *Instance) ReadPassword(prompt string) ([]byte, error) {
 	return i.operation.Password(prompt)
 }

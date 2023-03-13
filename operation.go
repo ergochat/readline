@@ -454,13 +454,6 @@ func (o *Operation) Runes() ([]rune, error) {
 	}
 }
 
-func (o *Operation) PasswordEx(prompt string, l Listener) ([]byte, error) {
-	cfg := o.GenPasswordConfig()
-	cfg.Prompt = prompt
-	cfg.Listener = l
-	return o.PasswordWithConfig(cfg)
-}
-
 func (o *Operation) GenPasswordConfig() *Config {
 	return o.password.PasswordConfig()
 }
@@ -474,7 +467,9 @@ func (o *Operation) PasswordWithConfig(cfg *Config) ([]byte, error) {
 }
 
 func (o *Operation) Password(prompt string) ([]byte, error) {
-	return o.PasswordEx(prompt, nil)
+	cfg := o.GenPasswordConfig()
+	cfg.Prompt = prompt
+	return o.PasswordWithConfig(cfg)
 }
 
 func (o *Operation) SetTitle(t string) {
