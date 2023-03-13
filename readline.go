@@ -19,7 +19,10 @@ package readline
 
 import (
 	"io"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 )
 
 type Instance struct {
@@ -296,11 +299,17 @@ func (i *Instance) Close() error {
 	return i.closeErr
 }
 
-// call CaptureExitSignal when you want readline exit gracefully.
+// CaptureExitSignal registers handlers for common exit signals that will
+// close the readline instance.
 func (i *Instance) CaptureExitSignal() {
-	CaptureExitSignal(func() {
-		i.Close()
-	})
+	cSignal := make(chan os.Signal, 1)
+	// TODO handle other signals in a portable way?
+	signal.Notify(cSignal, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		for range cSignal {
+			i.Close()
+		}
+	}()
 }
 
 func (i *Instance) Clean() {
