@@ -236,9 +236,9 @@ func (o *opHistory) Enable() {
 }
 
 func (o *opHistory) debug() {
-	Debug("-------")
+	debugPrint("-------")
 	for item := o.history.Front(); item != nil; item = item.Next() {
-		Debug(fmt.Sprintf("%+v", item.Value))
+		debugPrint(fmt.Sprintf("%+v", item.Value))
 	}
 }
 
