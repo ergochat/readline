@@ -34,7 +34,7 @@ type Operation struct {
 
 	history *opHistory
 	*opSearch
-	*opCompleter
+	completer *opCompleter
 	*opPassword
 	*opVim
 }
@@ -80,8 +80,8 @@ func (o *Operation) write(target io.Writer, b []byte) (int, error) {
 	if o.IsSearchMode() {
 		o.SearchRefresh(-1)
 	}
-	if o.IsInCompleteMode() {
-		o.CompleteRefresh()
+	if o.completer.IsInCompleteMode() {
+		o.completer.CompleteRefresh()
 	}
 	return n, err
 }
@@ -96,7 +96,7 @@ func NewOperation(t *Terminal, cfg *Config) *Operation {
 	op.w = op.buf.w
 	op.SetConfig(cfg)
 	op.opVim = newVimMode(op)
-	op.opCompleter = newOpCompleter(op.buf.w, op)
+	op.completer = newOpCompleter(op.buf.w, op)
 	op.opPassword = newOpPassword(op)
 	op.cfg.FuncOnWidthChanged(t.OnSizeChange)
 	go op.ioloop()
@@ -150,8 +150,8 @@ func (o *Operation) ioloop() {
 		}
 		isUpdateHistory := true
 
-		if o.IsInPagerMode() {
-			keepInCompleteMode = o.HandlePagerMode(r)
+		if o.completer.IsInPagerMode() {
+			keepInCompleteMode = o.completer.HandlePagerMode(r)
 			if r == CharEnter || r == CharCtrlJ || r == CharInterrupt {
 				o.t.KickRead()
 			}
@@ -161,8 +161,8 @@ func (o *Operation) ioloop() {
 			continue
 		}
 
-		if o.IsInCompleteSelectMode() {
-			keepInCompleteMode = o.HandleCompleteSelect(r)
+		if o.completer.IsInCompleteSelectMode() {
+			keepInCompleteMode = o.completer.HandleCompleteSelect(r)
 			if keepInCompleteMode {
 				continue
 			}
@@ -193,8 +193,8 @@ func (o *Operation) ioloop() {
 				o.ExitSearchMode(true)
 				o.buf.Refresh(nil)
 			}
-			if o.IsInCompleteMode() {
-				o.ExitCompleteMode(true)
+			if o.completer.IsInCompleteMode() {
+				o.completer.ExitCompleteMode(true)
 				o.buf.Refresh(nil)
 			}
 		case CharTab:
@@ -202,8 +202,8 @@ func (o *Operation) ioloop() {
 				o.t.Bell()
 				break
 			}
-			if o.OnComplete() {
-				if o.IsInCompleteMode() {
+			if o.completer.OnComplete() {
+				if o.completer.IsInCompleteMode() {
 					keepInCompleteMode = true
 					continue // redraw is done, loop
 				}
@@ -268,8 +268,8 @@ func (o *Operation) ioloop() {
 			if o.IsSearchMode() {
 				o.ExitSearchMode(false)
 			}
-			if o.IsInCompleteMode() {
-				o.ExitCompleteMode(true)
+			if o.completer.IsInCompleteMode() {
+				o.completer.ExitCompleteMode(true)
 				o.buf.Refresh(nil)
 			}
 			o.buf.MoveToLineEnd()
@@ -333,9 +333,9 @@ func (o *Operation) ioloop() {
 				o.ExitSearchMode(true)
 				break
 			}
-			if o.IsInCompleteMode() {
+			if o.completer.IsInCompleteMode() {
 				o.t.KickRead()
-				o.ExitCompleteMode(true)
+				o.completer.ExitCompleteMode(true)
 				o.buf.Refresh(nil)
 				break
 			}
@@ -359,9 +359,9 @@ func (o *Operation) ioloop() {
 				break
 			}
 			o.buf.WriteRune(r)
-			if o.IsInCompleteMode() {
-				o.OnComplete()
-				if o.IsInCompleteMode() {
+			if o.completer.IsInCompleteMode() {
+				o.completer.OnComplete()
+				if o.completer.IsInCompleteMode() {
 					keepInCompleteMode = true
 				} else {
 					o.buf.Refresh(nil)
@@ -381,13 +381,13 @@ func (o *Operation) ioloop() {
 		if !keepInSearchMode && o.IsSearchMode() {
 			o.ExitSearchMode(false)
 			o.buf.Refresh(nil)
-		} else if o.IsInCompleteMode() {
+		} else if o.completer.IsInCompleteMode() {
 			if !keepInCompleteMode {
-				o.ExitCompleteMode(false)
+				o.completer.ExitCompleteMode(false)
 				o.refresh()
 			} else {
 				o.buf.Refresh(nil)
-				o.CompleteRefresh()
+				o.completer.CompleteRefresh()
 			}
 		}
 		if isUpdateHistory && !o.IsSearchMode() {
@@ -506,7 +506,7 @@ func (o *Operation) SetHistoryPath(path string) {
 }
 
 func (o *Operation) IsNormalMode() bool {
-	return !o.IsInCompleteMode() && !o.IsSearchMode()
+	return !o.completer.IsInCompleteMode() && !o.IsSearchMode()
 }
 
 func (op *Operation) SetConfig(cfg *Config) (*Config, error) {
@@ -538,8 +538,8 @@ func (op *Operation) SetConfig(cfg *Config) (*Config, error) {
 	// so if we use it next time, we need to reopen it by `InitHistory()`
 	op.history.Init()
 
-	if op.cfg.AutoComplete != nil && op.opCompleter == nil {
-		op.opCompleter = newOpCompleter(op.buf.w, op)
+	if op.cfg.AutoComplete != nil && op.completer == nil {
+		op.completer = newOpCompleter(op.buf.w, op)
 	}
 
 	op.opSearch = cfg.opSearch
