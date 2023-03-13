@@ -7,12 +7,12 @@ import (
 	"golang.org/x/text/width"
 )
 
-var runes = Runes{}
+var runes = runeTools{}
 var TabWidth = 4
 
-type Runes struct{}
+type runeTools struct{}
 
-func (Runes) EqualRune(a, b rune, fold bool) bool {
+func (runeTools) EqualRune(a, b rune, fold bool) bool {
 	if a == b {
 		return true
 	}
@@ -30,11 +30,11 @@ func (Runes) EqualRune(a, b rune, fold bool) bool {
 	return false
 }
 
-func (r Runes) EqualRuneFold(a, b rune) bool {
+func (r runeTools) EqualRuneFold(a, b rune) bool {
 	return r.EqualRune(a, b, true)
 }
 
-func (r Runes) EqualFold(a, b []rune) bool {
+func (r runeTools) EqualFold(a, b []rune) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -48,7 +48,7 @@ func (r Runes) EqualFold(a, b []rune) bool {
 	return true
 }
 
-func (Runes) Equal(a, b []rune) bool {
+func (runeTools) Equal(a, b []rune) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -60,7 +60,7 @@ func (Runes) Equal(a, b []rune) bool {
 	return true
 }
 
-func (rs Runes) IndexAllBckEx(r, sub []rune, fold bool) int {
+func (rs runeTools) IndexAllBckEx(r, sub []rune, fold bool) int {
 	for i := len(r) - len(sub); i >= 0; i-- {
 		found := true
 		for j := 0; j < len(sub); j++ {
@@ -77,16 +77,16 @@ func (rs Runes) IndexAllBckEx(r, sub []rune, fold bool) int {
 }
 
 // Search in runes from end to front
-func (rs Runes) IndexAllBck(r, sub []rune) int {
+func (rs runeTools) IndexAllBck(r, sub []rune) int {
 	return rs.IndexAllBckEx(r, sub, false)
 }
 
 // Search in runes from front to end
-func (rs Runes) IndexAll(r, sub []rune) int {
+func (rs runeTools) IndexAll(r, sub []rune) int {
 	return rs.IndexAllEx(r, sub, false)
 }
 
-func (rs Runes) IndexAllEx(r, sub []rune, fold bool) int {
+func (rs runeTools) IndexAllEx(r, sub []rune, fold bool) int {
 	for i := 0; i < len(r); i++ {
 		found := true
 		if len(r[i:]) < len(sub) {
@@ -105,7 +105,7 @@ func (rs Runes) IndexAllEx(r, sub []rune, fold bool) int {
 	return -1
 }
 
-func (Runes) Index(r rune, rs []rune) int {
+func (runeTools) Index(r rune, rs []rune) int {
 	for i := 0; i < len(rs); i++ {
 		if rs[i] == r {
 			return i
@@ -114,7 +114,7 @@ func (Runes) Index(r rune, rs []rune) int {
 	return -1
 }
 
-func (Runes) ColorFilter(r []rune) []rune {
+func (runeTools) ColorFilter(r []rune) []rune {
 	newr := make([]rune, 0, len(r))
 	for pos := 0; pos < len(r); pos++ {
 		if r[pos] == '\033' && r[pos+1] == '[' {
@@ -144,7 +144,7 @@ var doubleWidth = []*unicode.RangeTable{
 	unicode.Katakana,
 }
 
-func (Runes) Width(r rune) int {
+func (runeTools) Width(r rune) int {
 	if r == '\t' {
 		return TabWidth
 	}
@@ -159,38 +159,38 @@ func (Runes) Width(r rune) int {
 	}
 }
 
-func (Runes) WidthAll(r []rune) (length int) {
+func (runeTools) WidthAll(r []rune) (length int) {
 	for i := 0; i < len(r); i++ {
 		length += runes.Width(r[i])
 	}
 	return
 }
 
-func (Runes) Backspace(r []rune) []byte {
+func (runeTools) Backspace(r []rune) []byte {
 	return bytes.Repeat([]byte{'\b'}, runes.WidthAll(r))
 }
 
-func (Runes) Copy(r []rune) []rune {
+func (runeTools) Copy(r []rune) []rune {
 	n := make([]rune, len(r))
 	copy(n, r)
 	return n
 }
 
-func (Runes) HasPrefixFold(r, prefix []rune) bool {
+func (runeTools) HasPrefixFold(r, prefix []rune) bool {
 	if len(r) < len(prefix) {
 		return false
 	}
 	return runes.EqualFold(r[:len(prefix)], prefix)
 }
 
-func (Runes) HasPrefix(r, prefix []rune) bool {
+func (runeTools) HasPrefix(r, prefix []rune) bool {
 	if len(r) < len(prefix) {
 		return false
 	}
 	return runes.Equal(r[:len(prefix)], prefix)
 }
 
-func (Runes) Aggregate(candicate [][]rune) (same []rune, size int) {
+func (runeTools) Aggregate(candicate [][]rune) (same []rune, size int) {
 	for i := 0; i < len(candicate[0]); i++ {
 		for j := 0; j < len(candicate)-1; j++ {
 			if i >= len(candicate[j]) || i >= len(candicate[j+1]) {
@@ -214,7 +214,7 @@ aggregate:
 	return
 }
 
-func (Runes) TrimSpaceLeft(in []rune) []rune {
+func (runeTools) TrimSpaceLeft(in []rune) []rune {
 	firstIndex := len(in)
 	for i, r := range in {
 		if unicode.IsSpace(r) == false {
