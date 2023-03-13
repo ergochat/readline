@@ -36,7 +36,7 @@ type Operation struct {
 	search  *opSearch
 	completer *opCompleter
 	password *opPassword
-	*opVim
+	vim *opVim
 }
 
 func (o *Operation) SetBuffer(what string) {
@@ -95,7 +95,7 @@ func NewOperation(t *Terminal, cfg *Config) *Operation {
 	}
 	op.w = op.buf.w
 	op.SetConfig(cfg)
-	op.opVim = newVimMode(op)
+	op.vim = newVimMode(op)
 	op.completer = newOpCompleter(op.buf.w, op)
 	op.password = newOpPassword(op)
 	op.cfg.FuncOnWidthChanged(t.OnSizeChange)
@@ -180,8 +180,8 @@ func (o *Operation) ioloop() {
 			}
 		}
 
-		if o.IsEnableVimMode() {
-			r = o.HandleVim(r, o.t.GetRune)
+		if o.vim.IsEnableVimMode() {
+			r = o.vim.HandleVim(r, o.t.GetRune)
 			if r == 0 {
 				continue
 			}

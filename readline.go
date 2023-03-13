@@ -226,11 +226,11 @@ func (i *Instance) Stderr() io.Writer {
 
 // switch VimMode in runtime
 func (i *Instance) SetVimMode(on bool) {
-	i.operation.SetVimMode(on)
+	i.operation.vim.SetVimMode(on)
 }
 
 func (i *Instance) IsVimMode() bool {
-	return i.operation.IsEnableVimMode()
+	return i.operation.vim.IsEnableVimMode()
 }
 
 func (i *Instance) GenPasswordConfig() *Config {
