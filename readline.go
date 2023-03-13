@@ -62,7 +62,6 @@ type Config struct {
 	FuncGetSize     func() (width int, height int)
 
 	Stdin       io.Reader
-	StdinWriter io.Writer
 	Stdout      io.Writer
 	Stderr      io.Writer
 
@@ -88,6 +87,8 @@ type Config struct {
 	inited    bool
 	opHistory *opHistory
 	opSearch  *opSearch
+	// write interface to prefill stdin with data
+	stdinWriter io.Writer
 }
 
 func (c *Config) useInteractive() bool {
@@ -106,8 +107,8 @@ func (c *Config) Init() error {
 		c.Stdin = Stdin
 	}
 
-	fillableStdin := NewFillableStdin(c.Stdin)
-	c.Stdin, c.StdinWriter = fillableStdin, fillableStdin
+	fillableStdin := newFillableStdin(c.Stdin)
+	c.Stdin, c.stdinWriter = fillableStdin, fillableStdin
 
 	if c.Stdout == nil {
 		c.Stdout = Stdout
@@ -309,18 +310,19 @@ func (i *Instance) Write(b []byte) (int, error) {
 	return i.Stdout().Write(b)
 }
 
-// WriteStdin prefill the next Stdin fetch
-// Next time you call ReadLine() this value will be writen before the user input
-// ie :
+// WriteStdin prefills the next Stdin fetch. On the next call to Readline(),
+// this data will be written before the user input, and the user will be able
+// to edit it.
+// For example:
 //  i := readline.New()
 //  i.WriteStdin([]byte("test"))
 //  _, _= i.Readline()
 //
-// gives
+// yields
 //
 // > test[cursor]
 func (i *Instance) WriteStdin(val []byte) (int, error) {
-	return i.Terminal.WriteStdin(val)
+	return i.getConfig().stdinWriter.Write(val)
 }
 
 func (i *Instance) SetConfig(cfg *Config) error {
@@ -330,6 +332,10 @@ func (i *Instance) SetConfig(cfg *Config) error {
 	i.Operation.SetConfig(cfg)
 	i.Terminal.setConfig(cfg)
 	return nil
+}
+
+func (i *Instance) getConfig() *Config {
+	return i.Terminal.cfg.Load()
 }
 
 func (i *Instance) Refresh() {
