@@ -23,8 +23,8 @@ import (
 )
 
 type Instance struct {
-	Terminal  *Terminal
-	Operation *Operation
+	terminal  *Terminal
+	operation *Operation
 
 	closeOnce sync.Once
 	closeErr  error
@@ -181,8 +181,8 @@ func NewFromConfig(cfg *Config) (*Instance, error) {
 	}
 	o := NewOperation(t, cfg)
 	return &Instance{
-		Terminal:  t,
-		Operation: o,
+		terminal:  t,
+		operation: o,
 	}, nil
 }
 
@@ -195,56 +195,56 @@ func New(prompt string) (*Instance, error) {
 }
 
 func (i *Instance) ResetHistory() {
-	i.Operation.ResetHistory()
+	i.operation.ResetHistory()
 }
 
 func (i *Instance) SetPrompt(s string) {
-	i.Operation.SetPrompt(s)
+	i.operation.SetPrompt(s)
 }
 
 func (i *Instance) SetMaskRune(r rune) {
-	i.Operation.SetMaskRune(r)
+	i.operation.SetMaskRune(r)
 }
 
 // change history persistence in runtime
 func (i *Instance) SetHistoryPath(p string) {
-	i.Operation.SetHistoryPath(p)
+	i.operation.SetHistoryPath(p)
 }
 
 // readline will refresh automatic when write through Stdout()
 func (i *Instance) Stdout() io.Writer {
-	return i.Operation.Stdout()
+	return i.operation.Stdout()
 }
 
 // readline will refresh automatic when write through Stdout()
 func (i *Instance) Stderr() io.Writer {
-	return i.Operation.Stderr()
+	return i.operation.Stderr()
 }
 
 // switch VimMode in runtime
 func (i *Instance) SetVimMode(on bool) {
-	i.Operation.SetVimMode(on)
+	i.operation.SetVimMode(on)
 }
 
 func (i *Instance) IsVimMode() bool {
-	return i.Operation.IsEnableVimMode()
+	return i.operation.IsEnableVimMode()
 }
 
 func (i *Instance) GenPasswordConfig() *Config {
-	return i.Operation.GenPasswordConfig()
+	return i.operation.GenPasswordConfig()
 }
 
 // we can generate a config by `i.GenPasswordConfig()`
 func (i *Instance) ReadPasswordWithConfig(cfg *Config) ([]byte, error) {
-	return i.Operation.PasswordWithConfig(cfg)
+	return i.operation.PasswordWithConfig(cfg)
 }
 
 func (i *Instance) ReadPasswordEx(prompt string, l Listener) ([]byte, error) {
-	return i.Operation.PasswordEx(prompt, l)
+	return i.operation.PasswordEx(prompt, l)
 }
 
 func (i *Instance) ReadPassword(prompt string) ([]byte, error) {
-	return i.Operation.Password(prompt)
+	return i.operation.Password(prompt)
 }
 
 type Result struct {
@@ -267,30 +267,31 @@ func (i *Instance) Line() *Result {
 
 // err is one of (nil, io.EOF, readline.ErrInterrupt)
 func (i *Instance) Readline() (string, error) {
-	return i.Operation.String()
+	return i.operation.String()
 }
 
 func (i *Instance) ReadlineWithDefault(what string) (string, error) {
-	i.Operation.SetBuffer(what)
-	return i.Operation.String()
+	i.operation.SetBuffer(what)
+	return i.operation.String()
 }
 
 func (i *Instance) SaveHistory(content string) error {
-	return i.Operation.SaveHistory(content)
+	return i.operation.SaveHistory(content)
 }
 
 // same as readline
 func (i *Instance) ReadSlice() ([]byte, error) {
-	return i.Operation.Slice()
+	return i.operation.Slice()
 }
 
-// we must make sure that call Close() before process exit.
-// if there has a pending reading operation, that reading will be interrupted.
-// so you can capture the signal and call Instance.Close(), it's thread-safe.
+// Close() closes the readline instance, cleaning up state changes to the
+// terminal. It interrupts any concurrent Readline() operation, so it can be
+// asynchronously or from a signal handler. It is concurrency-safe and
+// idempotent, so it can be called multiple times.
 func (i *Instance) Close() error {
 	i.closeOnce.Do(func() {
-		i.Operation.Close()
-		i.closeErr = i.Terminal.Close()
+		i.operation.Close()
+		i.closeErr = i.terminal.Close()
 	})
 	return i.closeErr
 }
@@ -303,7 +304,7 @@ func (i *Instance) CaptureExitSignal() {
 }
 
 func (i *Instance) Clean() {
-	i.Operation.Clean()
+	i.operation.Clean()
 }
 
 func (i *Instance) Write(b []byte) (int, error) {
@@ -329,25 +330,25 @@ func (i *Instance) SetConfig(cfg *Config) error {
 	if err := cfg.Init(); err != nil {
 		return err
 	}
-	i.Operation.SetConfig(cfg)
-	i.Terminal.setConfig(cfg)
+	i.operation.SetConfig(cfg)
+	i.terminal.setConfig(cfg)
 	return nil
 }
 
 func (i *Instance) getConfig() *Config {
-	return i.Terminal.cfg.Load()
+	return i.terminal.cfg.Load()
 }
 
 func (i *Instance) Refresh() {
-	i.Operation.Refresh()
+	i.operation.Refresh()
 }
 
 // HistoryDisable the save of the commands into the history
 func (i *Instance) HistoryDisable() {
-	i.Operation.history.Disable()
+	i.operation.history.Disable()
 }
 
 // HistoryEnable the save of the commands into the history (default on)
 func (i *Instance) HistoryEnable() {
-	i.Operation.history.Enable()
+	i.operation.history.Enable()
 }
