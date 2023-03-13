@@ -33,7 +33,7 @@ type Operation struct {
 	isPrompting bool       // true when prompt written and waiting for input
 
 	history *opHistory
-	*opSearch
+	search  *opSearch
 	completer *opCompleter
 	*opPassword
 	*opVim
@@ -77,8 +77,8 @@ func (o *Operation) write(target io.Writer, b []byte) (int, error) {
 		}
 	})
 
-	if o.IsSearchMode() {
-		o.SearchRefresh(-1)
+	if o.search.IsSearchMode() {
+		o.search.SearchRefresh(-1)
 	}
 	if o.completer.IsInCompleteMode() {
 		o.completer.CompleteRefresh()
@@ -189,8 +189,8 @@ func (o *Operation) ioloop() {
 
 		switch r {
 		case CharBell:
-			if o.IsSearchMode() {
-				o.ExitSearchMode(true)
+			if o.search.IsSearchMode() {
+				o.search.ExitSearchMode(true)
 				o.buf.Refresh(nil)
 			}
 			if o.completer.IsInCompleteMode() {
@@ -212,7 +212,7 @@ func (o *Operation) ioloop() {
 			}
 			o.buf.Refresh(nil)
 		case CharBckSearch:
-			if !o.SearchMode(S_DIR_BCK) {
+			if !o.search.SearchMode(S_DIR_BCK) {
 				o.t.Bell()
 				break
 			}
@@ -220,7 +220,7 @@ func (o *Operation) ioloop() {
 		case CharCtrlU:
 			o.buf.KillFront()
 		case CharFwdSearch:
-			if !o.SearchMode(S_DIR_FWD) {
+			if !o.search.SearchMode(S_DIR_FWD) {
 				o.t.Bell()
 				break
 			}
@@ -241,8 +241,8 @@ func (o *Operation) ioloop() {
 		case CharLineEnd:
 			o.buf.MoveToLineEnd()
 		case CharBackspace, CharCtrlH:
-			if o.IsSearchMode() {
-				o.SearchBackspace()
+			if o.search.IsSearchMode() {
+				o.search.SearchBackspace()
 				keepInSearchMode = true
 				break
 			}
@@ -265,8 +265,8 @@ func (o *Operation) ioloop() {
 		case CharCtrlY:
 			o.buf.Yank()
 		case CharEnter, CharCtrlJ:
-			if o.IsSearchMode() {
-				o.ExitSearchMode(false)
+			if o.search.IsSearchMode() {
+				o.search.ExitSearchMode(false)
 			}
 			if o.completer.IsInCompleteMode() {
 				o.completer.ExitCompleteMode(true)
@@ -328,9 +328,9 @@ func (o *Operation) ioloop() {
 				o.buf.Clean()
 			}
 		case CharInterrupt:
-			if o.IsSearchMode() {
+			if o.search.IsSearchMode() {
 				o.t.KickRead()
-				o.ExitSearchMode(true)
+				o.search.ExitSearchMode(true)
 				break
 			}
 			if o.completer.IsInCompleteMode() {
@@ -353,8 +353,8 @@ func (o *Operation) ioloop() {
 			o.history.Revert()
 			o.errchan <- &InterruptError{remain}
 		default:
-			if o.IsSearchMode() {
-				o.SearchChar(r)
+			if o.search.IsSearchMode() {
+				o.search.SearchChar(r)
 				keepInSearchMode = true
 				break
 			}
@@ -378,8 +378,8 @@ func (o *Operation) ioloop() {
 		}
 
 		o.m.Lock()
-		if !keepInSearchMode && o.IsSearchMode() {
-			o.ExitSearchMode(false)
+		if !keepInSearchMode && o.search.IsSearchMode() {
+			o.search.ExitSearchMode(false)
 			o.buf.Refresh(nil)
 		} else if o.completer.IsInCompleteMode() {
 			if !keepInCompleteMode {
@@ -390,7 +390,7 @@ func (o *Operation) ioloop() {
 				o.completer.CompleteRefresh()
 			}
 		}
-		if isUpdateHistory && !o.IsSearchMode() {
+		if isUpdateHistory && !o.search.IsSearchMode() {
 			// it will cause null history
 			o.history.Update(o.buf.Runes(), false)
 		}
@@ -506,7 +506,7 @@ func (o *Operation) SetHistoryPath(path string) {
 }
 
 func (o *Operation) IsNormalMode() bool {
-	return !o.completer.IsInCompleteMode() && !o.IsSearchMode()
+	return !o.completer.IsInCompleteMode() && !o.search.IsSearchMode()
 }
 
 func (op *Operation) SetConfig(cfg *Config) (*Config, error) {
@@ -542,7 +542,7 @@ func (op *Operation) SetConfig(cfg *Config) (*Config, error) {
 		op.completer = newOpCompleter(op.buf.w, op)
 	}
 
-	op.opSearch = cfg.opSearch
+	op.search = cfg.opSearch
 	return old, nil
 }
 
