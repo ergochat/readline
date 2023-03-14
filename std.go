@@ -2,14 +2,7 @@ package readline
 
 import (
 	"io"
-	"os"
 	"sync"
-)
-
-var (
-	Stdin  io.ReadCloser  = os.Stdin
-	Stdout io.WriteCloser = os.Stdout
-	Stderr io.WriteCloser = os.Stderr
 )
 
 // fillableStdin is a stdin reader which can prepend some data before
