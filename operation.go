@@ -5,6 +5,8 @@ import (
 	"io"
 	"sync"
 	"sync/atomic"
+
+	"github.com/ergochat/readline/internal/runes"
 )
 
 var (

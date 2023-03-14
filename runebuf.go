@@ -7,6 +7,8 @@ import (
 	"io"
 	"strings"
 	"sync"
+
+	"github.com/ergochat/readline/internal/runes"
 )
 
 type runeBufferBck struct {
@@ -540,7 +542,7 @@ func (r *RuneBuffer) append(s []rune) {
 	} else {
 		for _, e := range r.cfg.Painter.Paint(s, slen) {
 			if e == '\t' {
-				buf.WriteString(strings.Repeat(" ", TabWidth))
+				buf.WriteString(strings.Repeat(" ", runes.TabWidth))
 			} else {
 				buf.WriteRune(e)
 			}
@@ -581,7 +583,7 @@ func (r *RuneBuffer) output() []byte {
 	} else {
 		for _, e := range r.cfg.Painter.Paint(r.buf, r.idx) {
 			if e == '\t' {
-				buf.WriteString(strings.Repeat(" ", TabWidth))
+				buf.WriteString(strings.Repeat(" ", runes.TabWidth))
 			} else {
 				buf.WriteRune(e)
 			}

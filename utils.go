@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 	"unicode"
+
+	"github.com/ergochat/readline/internal/runes"
 )
 
 var (

@@ -1,4 +1,4 @@
-package readline
+package runes
 
 import (
 	"reflect"
@@ -31,7 +31,7 @@ func TestSingleRuneWidth(t *testing.T) {
         }
 
         for _, test := range tests {
-		if w := runes.Width(test.r); w != test.w {
+		if w := Width(test.r); w != test.w {
 			t.Error("result is not expected", string(test.r), test.w, w)
 		}
 	}
@@ -43,7 +43,7 @@ func TestRuneWidth(t *testing.T) {
 		{[]rune("☭"), 1},
 		{[]rune("a"), 1},
 		{[]rune("你"), 2},
-		{runes.ColorFilter([]rune("☭\033[13;1m你")), 3},
+		{ColorFilter([]rune("☭\033[13;1m你")), 3},
 		{[]rune("漢字"), 4},           // kanji
 		{[]rune("ｶﾀｶﾅ"), 4},           // half-width katakana
 		{[]rune("カタカナ"), 8},       // full-width katakana
@@ -54,7 +54,7 @@ func TestRuneWidth(t *testing.T) {
 		{[]rune("😅"), 2},             // emoji
 	}
 	for _, r := range rs {
-		if w := runes.WidthAll(r.r); w != r.length {
+		if w := WidthAll(r.r); w != r.length {
 			t.Error("result is not expected", string(r.r), r.length, w)
 		}
 	}
@@ -90,7 +90,7 @@ func TestAggRunes(t *testing.T) {
 		},
 	}
 	for _, r := range rs {
-		same, off := runes.Aggregate(r.r)
+		same, off := Aggregate(r.r)
 		if off != r.length {
 			t.Fatal("result not expect", off)
 		}

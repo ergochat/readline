@@ -1,4 +1,4 @@
-package readline
+package runes
 
 import (
 	"bytes"
@@ -7,12 +7,9 @@ import (
 	"golang.org/x/text/width"
 )
 
-var runes = Runes{}
 var TabWidth = 4
 
-type Runes struct{}
-
-func (Runes) EqualRune(a, b rune, fold bool) bool {
+func EqualRune(a, b rune, fold bool) bool {
 	if a == b {
 		return true
 	}
@@ -30,16 +27,16 @@ func (Runes) EqualRune(a, b rune, fold bool) bool {
 	return false
 }
 
-func (r Runes) EqualRuneFold(a, b rune) bool {
-	return r.EqualRune(a, b, true)
+func EqualRuneFold(a, b rune) bool {
+	return EqualRune(a, b, true)
 }
 
-func (r Runes) EqualFold(a, b []rune) bool {
+func EqualFold(a, b []rune) bool {
 	if len(a) != len(b) {
 		return false
 	}
 	for i := 0; i < len(a); i++ {
-		if r.EqualRuneFold(a[i], b[i]) {
+		if EqualRuneFold(a[i], b[i]) {
 			continue
 		}
 		return false
@@ -48,7 +45,7 @@ func (r Runes) EqualFold(a, b []rune) bool {
 	return true
 }
 
-func (Runes) Equal(a, b []rune) bool {
+func Equal(a, b []rune) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -60,11 +57,11 @@ func (Runes) Equal(a, b []rune) bool {
 	return true
 }
 
-func (rs Runes) IndexAllBckEx(r, sub []rune, fold bool) int {
+func IndexAllBckEx(r, sub []rune, fold bool) int {
 	for i := len(r) - len(sub); i >= 0; i-- {
 		found := true
 		for j := 0; j < len(sub); j++ {
-			if !rs.EqualRune(r[i+j], sub[j], fold) {
+			if !EqualRune(r[i+j], sub[j], fold) {
 				found = false
 				break
 			}
@@ -77,23 +74,23 @@ func (rs Runes) IndexAllBckEx(r, sub []rune, fold bool) int {
 }
 
 // Search in runes from end to front
-func (rs Runes) IndexAllBck(r, sub []rune) int {
-	return rs.IndexAllBckEx(r, sub, false)
+func IndexAllBck(r, sub []rune) int {
+	return IndexAllBckEx(r, sub, false)
 }
 
 // Search in runes from front to end
-func (rs Runes) IndexAll(r, sub []rune) int {
-	return rs.IndexAllEx(r, sub, false)
+func IndexAll(r, sub []rune) int {
+	return IndexAllEx(r, sub, false)
 }
 
-func (rs Runes) IndexAllEx(r, sub []rune, fold bool) int {
+func IndexAllEx(r, sub []rune, fold bool) int {
 	for i := 0; i < len(r); i++ {
 		found := true
 		if len(r[i:]) < len(sub) {
 			return -1
 		}
 		for j := 0; j < len(sub); j++ {
-			if !rs.EqualRune(r[i+j], sub[j], fold) {
+			if !EqualRune(r[i+j], sub[j], fold) {
 				found = false
 				break
 			}
@@ -105,7 +102,7 @@ func (rs Runes) IndexAllEx(r, sub []rune, fold bool) int {
 	return -1
 }
 
-func (Runes) Index(r rune, rs []rune) int {
+func Index(r rune, rs []rune) int {
 	for i := 0; i < len(rs); i++ {
 		if rs[i] == r {
 			return i
@@ -114,11 +111,11 @@ func (Runes) Index(r rune, rs []rune) int {
 	return -1
 }
 
-func (Runes) ColorFilter(r []rune) []rune {
+func ColorFilter(r []rune) []rune {
 	newr := make([]rune, 0, len(r))
 	for pos := 0; pos < len(r); pos++ {
 		if r[pos] == '\033' && r[pos+1] == '[' {
-			idx := runes.Index('m', r[pos+2:])
+			idx := Index('m', r[pos+2:])
 			if idx == -1 {
 				continue
 			}
@@ -144,7 +141,7 @@ var doubleWidth = []*unicode.RangeTable{
 	unicode.Katakana,
 }
 
-func (Runes) Width(r rune) int {
+func Width(r rune) int {
 	if r == '\t' {
 		return TabWidth
 	}
@@ -159,38 +156,38 @@ func (Runes) Width(r rune) int {
 	}
 }
 
-func (Runes) WidthAll(r []rune) (length int) {
+func WidthAll(r []rune) (length int) {
 	for i := 0; i < len(r); i++ {
-		length += runes.Width(r[i])
+		length += Width(r[i])
 	}
 	return
 }
 
-func (Runes) Backspace(r []rune) []byte {
-	return bytes.Repeat([]byte{'\b'}, runes.WidthAll(r))
+func Backspace(r []rune) []byte {
+	return bytes.Repeat([]byte{'\b'}, WidthAll(r))
 }
 
-func (Runes) Copy(r []rune) []rune {
+func Copy(r []rune) []rune {
 	n := make([]rune, len(r))
 	copy(n, r)
 	return n
 }
 
-func (Runes) HasPrefixFold(r, prefix []rune) bool {
+func HasPrefixFold(r, prefix []rune) bool {
 	if len(r) < len(prefix) {
 		return false
 	}
-	return runes.EqualFold(r[:len(prefix)], prefix)
+	return EqualFold(r[:len(prefix)], prefix)
 }
 
-func (Runes) HasPrefix(r, prefix []rune) bool {
+func HasPrefix(r, prefix []rune) bool {
 	if len(r) < len(prefix) {
 		return false
 	}
-	return runes.Equal(r[:len(prefix)], prefix)
+	return Equal(r[:len(prefix)], prefix)
 }
 
-func (Runes) Aggregate(candicate [][]rune) (same []rune, size int) {
+func Aggregate(candicate [][]rune) (same []rune, size int) {
 	for i := 0; i < len(candicate[0]); i++ {
 		for j := 0; j < len(candicate)-1; j++ {
 			if i >= len(candicate[j]) || i >= len(candicate[j+1]) {
@@ -204,9 +201,9 @@ func (Runes) Aggregate(candicate [][]rune) (same []rune, size int) {
 	}
 aggregate:
 	if size > 0 {
-		same = runes.Copy(candicate[0][:size])
+		same = Copy(candicate[0][:size])
 		for i := 0; i < len(candicate); i++ {
-			n := runes.Copy(candicate[i])
+			n := Copy(candicate[i])
 			copy(n, n[size:])
 			candicate[i] = n[:len(n)-size]
 		}
@@ -214,7 +211,7 @@ aggregate:
 	return
 }
 
-func (Runes) TrimSpaceLeft(in []rune) []rune {
+func TrimSpaceLeft(in []rune) []rune {
 	firstIndex := len(in)
 	for i, r := range in {
 		if unicode.IsSpace(r) == false {

@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 	"sync"
+
+	"github.com/ergochat/readline/internal/runes"
 )
 
 type hisItem struct {

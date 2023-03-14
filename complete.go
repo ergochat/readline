@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+
+	"github.com/ergochat/readline/internal/runes"
 )
 
 type AutoCompleter interface {
