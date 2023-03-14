@@ -1,5 +1,9 @@
 package readline
 
+import (
+	"github.com/ergochat/readline/internal/runes"
+)
+
 type SegmentCompleter interface {
 	// a
 	// |- a1

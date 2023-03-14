@@ -5,6 +5,8 @@ import (
 	"io"
 	"sync"
 	"sync/atomic"
+
+	"github.com/ergochat/readline/internal/runes"
 )
 
 var (
@@ -33,10 +35,10 @@ type Operation struct {
 	isPrompting bool       // true when prompt written and waiting for input
 
 	history *opHistory
-	*opSearch
-	*opCompleter
-	*opPassword
-	*opVim
+	search  *opSearch
+	completer *opCompleter
+	password *opPassword
+	vim *opVim
 }
 
 func (o *Operation) SetBuffer(what string) {
@@ -77,11 +79,11 @@ func (o *Operation) write(target io.Writer, b []byte) (int, error) {
 		}
 	})
 
-	if o.IsSearchMode() {
-		o.SearchRefresh(-1)
+	if o.search.IsSearchMode() {
+		o.search.SearchRefresh(-1)
 	}
-	if o.IsInCompleteMode() {
-		o.CompleteRefresh()
+	if o.completer.IsInCompleteMode() {
+		o.completer.CompleteRefresh()
 	}
 	return n, err
 }
@@ -95,9 +97,9 @@ func NewOperation(t *Terminal, cfg *Config) *Operation {
 	}
 	op.w = op.buf.w
 	op.SetConfig(cfg)
-	op.opVim = newVimMode(op)
-	op.opCompleter = newOpCompleter(op.buf.w, op)
-	op.opPassword = newOpPassword(op)
+	op.vim = newVimMode(op)
+	op.completer = newOpCompleter(op.buf.w, op)
+	op.password = newOpPassword(op)
 	op.cfg.FuncOnWidthChanged(t.OnSizeChange)
 	go op.ioloop()
 	return op
@@ -150,8 +152,8 @@ func (o *Operation) ioloop() {
 		}
 		isUpdateHistory := true
 
-		if o.IsInPagerMode() {
-			keepInCompleteMode = o.HandlePagerMode(r)
+		if o.completer.IsInPagerMode() {
+			keepInCompleteMode = o.completer.HandlePagerMode(r)
 			if r == CharEnter || r == CharCtrlJ || r == CharInterrupt {
 				o.t.KickRead()
 			}
@@ -161,8 +163,8 @@ func (o *Operation) ioloop() {
 			continue
 		}
 
-		if o.IsInCompleteSelectMode() {
-			keepInCompleteMode = o.HandleCompleteSelect(r)
+		if o.completer.IsInCompleteSelectMode() {
+			keepInCompleteMode = o.completer.HandleCompleteSelect(r)
 			if keepInCompleteMode {
 				continue
 			}
@@ -180,8 +182,8 @@ func (o *Operation) ioloop() {
 			}
 		}
 
-		if o.IsEnableVimMode() {
-			r = o.HandleVim(r, o.t.GetRune)
+		if o.vim.IsEnableVimMode() {
+			r = o.vim.HandleVim(r, o.t.GetRune)
 			if r == 0 {
 				continue
 			}
@@ -189,12 +191,12 @@ func (o *Operation) ioloop() {
 
 		switch r {
 		case CharBell:
-			if o.IsSearchMode() {
-				o.ExitSearchMode(true)
+			if o.search.IsSearchMode() {
+				o.search.ExitSearchMode(true)
 				o.buf.Refresh(nil)
 			}
-			if o.IsInCompleteMode() {
-				o.ExitCompleteMode(true)
+			if o.completer.IsInCompleteMode() {
+				o.completer.ExitCompleteMode(true)
 				o.buf.Refresh(nil)
 			}
 		case CharTab:
@@ -202,8 +204,8 @@ func (o *Operation) ioloop() {
 				o.t.Bell()
 				break
 			}
-			if o.OnComplete() {
-				if o.IsInCompleteMode() {
+			if o.completer.OnComplete() {
+				if o.completer.IsInCompleteMode() {
 					keepInCompleteMode = true
 					continue // redraw is done, loop
 				}
@@ -212,7 +214,7 @@ func (o *Operation) ioloop() {
 			}
 			o.buf.Refresh(nil)
 		case CharBckSearch:
-			if !o.SearchMode(S_DIR_BCK) {
+			if !o.search.SearchMode(S_DIR_BCK) {
 				o.t.Bell()
 				break
 			}
@@ -220,7 +222,7 @@ func (o *Operation) ioloop() {
 		case CharCtrlU:
 			o.buf.KillFront()
 		case CharFwdSearch:
-			if !o.SearchMode(S_DIR_FWD) {
+			if !o.search.SearchMode(S_DIR_FWD) {
 				o.t.Bell()
 				break
 			}
@@ -241,8 +243,8 @@ func (o *Operation) ioloop() {
 		case CharLineEnd:
 			o.buf.MoveToLineEnd()
 		case CharBackspace, CharCtrlH:
-			if o.IsSearchMode() {
-				o.SearchBackspace()
+			if o.search.IsSearchMode() {
+				o.search.SearchBackspace()
 				keepInSearchMode = true
 				break
 			}
@@ -265,11 +267,11 @@ func (o *Operation) ioloop() {
 		case CharCtrlY:
 			o.buf.Yank()
 		case CharEnter, CharCtrlJ:
-			if o.IsSearchMode() {
-				o.ExitSearchMode(false)
+			if o.search.IsSearchMode() {
+				o.search.ExitSearchMode(false)
 			}
-			if o.IsInCompleteMode() {
-				o.ExitCompleteMode(true)
+			if o.completer.IsInCompleteMode() {
+				o.completer.ExitCompleteMode(true)
 				o.buf.Refresh(nil)
 			}
 			o.buf.MoveToLineEnd()
@@ -328,14 +330,14 @@ func (o *Operation) ioloop() {
 				o.buf.Clean()
 			}
 		case CharInterrupt:
-			if o.IsSearchMode() {
+			if o.search.IsSearchMode() {
 				o.t.KickRead()
-				o.ExitSearchMode(true)
+				o.search.ExitSearchMode(true)
 				break
 			}
-			if o.IsInCompleteMode() {
+			if o.completer.IsInCompleteMode() {
 				o.t.KickRead()
-				o.ExitCompleteMode(true)
+				o.completer.ExitCompleteMode(true)
 				o.buf.Refresh(nil)
 				break
 			}
@@ -353,15 +355,15 @@ func (o *Operation) ioloop() {
 			o.history.Revert()
 			o.errchan <- &InterruptError{remain}
 		default:
-			if o.IsSearchMode() {
-				o.SearchChar(r)
+			if o.search.IsSearchMode() {
+				o.search.SearchChar(r)
 				keepInSearchMode = true
 				break
 			}
 			o.buf.WriteRune(r)
-			if o.IsInCompleteMode() {
-				o.OnComplete()
-				if o.IsInCompleteMode() {
+			if o.completer.IsInCompleteMode() {
+				o.completer.OnComplete()
+				if o.completer.IsInCompleteMode() {
 					keepInCompleteMode = true
 				} else {
 					o.buf.Refresh(nil)
@@ -378,19 +380,19 @@ func (o *Operation) ioloop() {
 		}
 
 		o.m.Lock()
-		if !keepInSearchMode && o.IsSearchMode() {
-			o.ExitSearchMode(false)
+		if !keepInSearchMode && o.search.IsSearchMode() {
+			o.search.ExitSearchMode(false)
 			o.buf.Refresh(nil)
-		} else if o.IsInCompleteMode() {
+		} else if o.completer.IsInCompleteMode() {
 			if !keepInCompleteMode {
-				o.ExitCompleteMode(false)
+				o.completer.ExitCompleteMode(false)
 				o.refresh()
 			} else {
 				o.buf.Refresh(nil)
-				o.CompleteRefresh()
+				o.completer.CompleteRefresh()
 			}
 		}
-		if isUpdateHistory && !o.IsSearchMode() {
+		if isUpdateHistory && !o.search.IsSearchMode() {
 			// it will cause null history
 			o.history.Update(o.buf.Runes(), false)
 		}
@@ -454,27 +456,22 @@ func (o *Operation) Runes() ([]rune, error) {
 	}
 }
 
-func (o *Operation) PasswordEx(prompt string, l Listener) ([]byte, error) {
-	cfg := o.GenPasswordConfig()
-	cfg.Prompt = prompt
-	cfg.Listener = l
-	return o.PasswordWithConfig(cfg)
-}
-
 func (o *Operation) GenPasswordConfig() *Config {
-	return o.opPassword.PasswordConfig()
+	return o.password.PasswordConfig()
 }
 
 func (o *Operation) PasswordWithConfig(cfg *Config) ([]byte, error) {
-	if err := o.opPassword.EnterPasswordMode(cfg); err != nil {
+	if err := o.password.EnterPasswordMode(cfg); err != nil {
 		return nil, err
 	}
-	defer o.opPassword.ExitPasswordMode()
+	defer o.password.ExitPasswordMode()
 	return o.Slice()
 }
 
 func (o *Operation) Password(prompt string) ([]byte, error) {
-	return o.PasswordEx(prompt, nil)
+	cfg := o.GenPasswordConfig()
+	cfg.Prompt = prompt
+	return o.PasswordWithConfig(cfg)
 }
 
 func (o *Operation) SetTitle(t string) {
@@ -506,7 +503,7 @@ func (o *Operation) SetHistoryPath(path string) {
 }
 
 func (o *Operation) IsNormalMode() bool {
-	return !o.IsInCompleteMode() && !o.IsSearchMode()
+	return !o.completer.IsInCompleteMode() && !o.search.IsSearchMode()
 }
 
 func (op *Operation) SetConfig(cfg *Config) (*Config, error) {
@@ -538,11 +535,11 @@ func (op *Operation) SetConfig(cfg *Config) (*Config, error) {
 	// so if we use it next time, we need to reopen it by `InitHistory()`
 	op.history.Init()
 
-	if op.cfg.AutoComplete != nil && op.opCompleter == nil {
-		op.opCompleter = newOpCompleter(op.buf.w, op)
+	if op.cfg.AutoComplete != nil && op.completer == nil {
+		op.completer = newOpCompleter(op.buf.w, op)
 	}
 
-	op.opSearch = cfg.opSearch
+	op.search = cfg.opSearch
 	return old, nil
 }
 

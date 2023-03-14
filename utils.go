@@ -6,13 +6,13 @@ import (
 	"container/list"
 	"fmt"
 	"os"
-	"os/signal"
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 	"unicode"
+
+	"github.com/ergochat/readline/internal/runes"
 )
 
 var (
@@ -273,19 +273,19 @@ func GetInt(s []string, def int) int {
 	return c
 }
 
-type RawMode struct {
+type rawModeHandler struct {
 	sync.Mutex
 	state *State
 }
 
-func (r *RawMode) Enter() (err error) {
+func (r *rawModeHandler) Enter() (err error) {
 	r.Lock()
 	defer r.Unlock()
 	r.state, err = MakeRaw(GetStdin())
 	return err
 }
 
-func (r *RawMode) Exit() error {
+func (r *rawModeHandler) Exit() error {
 	r.Lock()
 	defer r.Unlock()
 	if r.state == nil {
@@ -300,33 +300,18 @@ func (r *RawMode) Exit() error {
 
 // -----------------------------------------------------------------------------
 
-func sleep(n int) {
-	Debug(n)
-	time.Sleep(2000 * time.Millisecond)
-}
-
 // print a linked list to Debug()
 func debugList(l *list.List) {
 	idx := 0
 	for e := l.Front(); e != nil; e = e.Next() {
-		Debug(idx, fmt.Sprintf("%+v", e.Value))
+		debugPrint(idx, fmt.Sprintf("%+v", e.Value))
 		idx++
 	}
 }
 
 // append log info to another file
-func Debug(o ...interface{}) {
+func debugPrint(o ...interface{}) {
 	f, _ := os.OpenFile("debug.tmp", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	fmt.Fprintln(f, o...)
 	f.Close()
-}
-
-func CaptureExitSignal(f func()) {
-	cSignal := make(chan os.Signal, 1)
-	signal.Notify(cSignal, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		for range cSignal {
-			f()
-		}
-	}()
 }

@@ -22,7 +22,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/chzyer/readline"
+	"github.com/ergochat/readline"
 )
 
 const (
