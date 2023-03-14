@@ -107,17 +107,17 @@ func (c *Config) Init() error {
 	}
 	c.inited = true
 	if c.Stdin == nil {
-		c.Stdin = Stdin
+		c.Stdin = os.Stdin
 	}
 
 	fillableStdin := newFillableStdin(c.Stdin)
 	c.Stdin, c.stdinWriter = fillableStdin, fillableStdin
 
 	if c.Stdout == nil {
-		c.Stdout = Stdout
+		c.Stdout = os.Stdout
 	}
 	if c.Stderr == nil {
-		c.Stderr = Stderr
+		c.Stderr = os.Stderr
 	}
 	if c.HistoryLimit == 0 {
 		c.HistoryLimit = 500
