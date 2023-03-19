@@ -6,6 +6,8 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+
+	"github.com/ergochat/readline/internal/ansi"
 )
 
 type Terminal struct {
@@ -29,7 +31,7 @@ type termDimensions struct {
 
 func NewTerminal(cfg *Config) (*Terminal, error) {
 	if cfg.useInteractive() {
-		if ansiErr := enableANSI(); ansiErr != nil {
+		if ansiErr := ansi.EnableANSI(); ansiErr != nil {
 			return nil, fmt.Errorf("Could not enable ANSI escapes: %w", ansiErr)
 		}
 	}
