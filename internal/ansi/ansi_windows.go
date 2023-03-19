@@ -25,7 +25,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-package readline
+package ansi
 
 import (
 	"sync"
@@ -38,7 +38,7 @@ var (
 	ansiOnce    sync.Once
 )
 
-func enableANSI() error {
+func EnableANSI() error {
 	ansiOnce.Do(func() {
 		ansiErr = realEnableANSI()
 	})
