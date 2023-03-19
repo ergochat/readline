@@ -3,6 +3,8 @@ package readline
 import (
 	"bytes"
 	"strings"
+
+	"github.com/ergochat/readline/internal/runes"
 )
 
 // Caller type for dynamic completion

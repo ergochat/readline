@@ -1,4 +1,4 @@
-module github.com/chzyer/readline
+module github.com/ergochat/readline
 
 go 1.18
 

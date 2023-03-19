@@ -286,7 +286,7 @@ func (m *Message) WriteTo(w io.Writer) (int64, error) {
 
 type RemoteCli struct {
 	conn        net.Conn
-	raw         RawMode
+	raw         rawModeHandler
 	receiveChan chan struct{}
 	inited      int32
 	isTerminal  *bool
