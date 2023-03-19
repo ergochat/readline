@@ -8,6 +8,8 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+
+	"github.com/ergochat/readline/internal/term"
 )
 
 type winsize struct {
@@ -29,7 +31,7 @@ func SuspendMe() {
 
 // get width of the terminal
 func getWidth(stdoutFd int) int {
-	cols, _, err := GetSize(stdoutFd)
+	cols, _, err := term.GetSize(stdoutFd)
 	if err != nil {
 		return -1
 	}
@@ -46,7 +48,7 @@ func GetScreenWidth() int {
 
 // getWidthHeight of the terminal using given file descriptor
 func getWidthHeight(stdoutFd int) (width int, height int) {
-	width, height, err := GetSize(stdoutFd)
+	width, height, err := term.GetSize(stdoutFd)
 	if err != nil {
 		return -1, -1
 	}
@@ -74,7 +76,7 @@ func ClearScreen(w io.Writer) (int, error) {
 }
 
 func DefaultIsTerminal() bool {
-	return IsTerminal(syscall.Stdin) && (IsTerminal(syscall.Stdout) || IsTerminal(syscall.Stderr))
+	return term.IsTerminal(syscall.Stdin) && (term.IsTerminal(syscall.Stdout) || term.IsTerminal(syscall.Stderr))
 }
 
 func GetStdin() int {

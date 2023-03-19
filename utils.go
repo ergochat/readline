@@ -13,6 +13,7 @@ import (
 	"unicode"
 
 	"github.com/ergochat/readline/internal/runes"
+	"github.com/ergochat/readline/internal/term"
 )
 
 var (
@@ -79,19 +80,6 @@ func WaitForResume() chan struct{} {
 	}()
 	wg.Wait()
 	return ch
-}
-
-func Restore(fd int, state *State) error {
-	err := restoreTerm(fd, state)
-	if err != nil {
-		// errno 0 means everything is ok :)
-		if err.Error() == "errno 0" {
-			return nil
-		} else {
-			return err
-		}
-	}
-	return nil
 }
 
 func IsPrintable(key rune) bool {
@@ -275,13 +263,13 @@ func GetInt(s []string, def int) int {
 
 type rawModeHandler struct {
 	sync.Mutex
-	state *State
+	state *term.State
 }
 
 func (r *rawModeHandler) Enter() (err error) {
 	r.Lock()
 	defer r.Unlock()
-	r.state, err = MakeRaw(GetStdin())
+	r.state, err = term.MakeRaw(GetStdin())
 	return err
 }
 
@@ -291,7 +279,7 @@ func (r *rawModeHandler) Exit() error {
 	if r.state == nil {
 		return nil
 	}
-	err := Restore(GetStdin(), r.state)
+	err := term.Restore(GetStdin(), r.state)
 	if err == nil {
 		r.state = nil
 	}
