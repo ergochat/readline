@@ -337,8 +337,8 @@ func (r *RuneBuffer) BackEscapeWord() {
 		if r.idx == 0 {
 			return
 		}
-		for i := r.idx - 1; i > 0; i-- {
-			if !IsWordBreak(r.buf[i]) && IsWordBreak(r.buf[i-1]) {
+		for i := r.idx - 1; i >= 0; i-- {
+			if i == 0 || (IsWordBreak(r.buf[i-1])) && !IsWordBreak(r.buf[i]) {
 				r.pushKill(r.buf[i:r.idx])
 				r.buf = append(r.buf[:i], r.buf[r.idx:]...)
 				r.idx = i
