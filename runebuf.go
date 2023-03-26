@@ -27,7 +27,7 @@ type RuneBuffer struct {
 
 	bck *runeBufferBck
 
-	offset string          // is offset useful? scrolling means row varies
+	cpos cursorPosition
 	ppos   int             // prompt start position (0 == column 1)
 
 	lastKill []rune
@@ -485,37 +485,17 @@ func (r *RuneBuffer) refresh(f func()) {
 	r.print()
 }
 
-// getAndSetOffset queries the terminal for the current cursor position by
-// writing a control sequence to the terminal. This call is asynchronous
-// and it returns before any offset has actually been set as the terminal
-// will write the offset back to us via stdin and there may already be 
-// other data in the stdin buffer ahead of it.
-// This function is called at the start of readline each time.
-func (r *RuneBuffer) getAndSetOffset() {
-	if !r.interactive {
-		return
-	}
-	if !isWindows {
-		// Handle lineedge cases where existing text before before
-		// the prompt is printed would leave us at the right edge of
-		// the screen but the next character would actually be printed
-		// at the beginning of the next line.
-		r.w.Write([]byte(" \b"))
-	}
-	r.w.GetOffset(r.SetOffset)
-}
-
-func (r *RuneBuffer) SetOffset(offset string) {
+func (r *RuneBuffer) SetOffset(position cursorPosition) {
 	r.Lock()
 	defer r.Unlock()
-	r.setOffset(offset)
+	r.setOffset(position)
 }
 
-func (r *RuneBuffer) setOffset(offset string) {
-	r.offset = offset
+func (r *RuneBuffer) setOffset(cpos cursorPosition) {
+	r.cpos = cpos
 	tWidth, _ := r.w.GetWidthHeight()
-	if _, c, ok := (&escapeKeyPair{attr:offset}).Get2(); ok && c > 0 && c < tWidth {
-		r.ppos = c - 1  // c should be 1..tWidth
+	if cpos.col > 0 && cpos.col < tWidth {
+		r.ppos = cpos.col - 1  // c should be 1..tWidth
 	} else {
 		r.ppos = 0
 	}

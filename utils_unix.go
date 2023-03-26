@@ -64,12 +64,6 @@ func GetScreenSize() (width int, height int) {
 	return
 }
 
-// Ask the terminal for the current cursor position. The terminal will then
-// write the position back to us via termainal stdin asynchronously.
-func SendCursorPosition(t *Terminal) {
-	t.Write([]byte("\033[6n"))
-}
-
 // ClearScreen clears the console screen
 func ClearScreen(w io.Writer) (int, error) {
 	return w.Write([]byte("\033[H"))

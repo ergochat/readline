@@ -3,7 +3,6 @@
 package readline
 
 import (
-	"fmt"
 	"io"
 	"syscall"
 )
@@ -37,16 +36,6 @@ func GetScreenSize() (width int, height int) {
 	height = int(info.srWindow.bottom) - int(info.srWindow.top) + 1
 	width = int(info.srWindow.right) - int(info.srWindow.left) + 1
 	return
-}
-
-// Send the Current cursor position to t.sizeChan.
-func SendCursorPosition(t *Terminal) {
-	info, err := GetConsoleScreenBufferInfo()
-	if err != nil || info == nil {
-		t.sizeChan <- "-1;-1"
-	} else {
-		t.sizeChan <- fmt.Sprintf("%d;%d", info.dwCursorPosition.y, info.dwCursorPosition.x)
-	}
 }
 
 // ClearScreen clears the console screen

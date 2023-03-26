@@ -271,6 +271,7 @@ func (i *Instance) ReadSlice() ([]byte, error) {
 // idempotent, so it can be called multiple times.
 func (i *Instance) Close() error {
 	i.closeOnce.Do(func() {
+		// TODO reorder these?
 		i.operation.Close()
 		i.closeErr = i.terminal.Close()
 	})
@@ -318,7 +319,7 @@ func (i *Instance) SetConfig(cfg *Config) error {
 		return err
 	}
 	i.operation.SetConfig(cfg)
-	i.terminal.setConfig(cfg)
+	i.terminal.SetConfig(cfg)
 	return nil
 }
 

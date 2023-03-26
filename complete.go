@@ -389,7 +389,7 @@ func (o *opCompleter) pagerRefresh() (stayInMode bool) {
 	buf := bufio.NewWriter(o.w)
 	firstPage := o.candidateChoise == 0
 	if firstPage {
-		o.op.buf.SetOffset("1;1")     // paging, so reset any prompt offset
+		o.op.buf.SetOffset(cursorPosition{1,1})     // paging, so reset any prompt offset
 		// move down from cursor to where candidates should start
 		lineCnt := o.op.buf.CursorLineCount()
 		buf.Write(bytes.Repeat([]byte("\n"), lineCnt))

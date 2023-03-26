@@ -1,16 +1,12 @@
 package readline
 
 import (
-	"bufio"
-	"bytes"
 	"container/list"
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
-	"unicode"
 
 	"github.com/ergochat/readline/internal/runes"
 	"github.com/ergochat/readline/internal/term"
@@ -55,6 +51,7 @@ const (
 	MetaDelete
 	MetaBackspace
 	MetaTranspose
+	MetaShiftTab
 )
 
 // WaitForResume need to call before current process got suspend.
@@ -85,119 +82,6 @@ func WaitForResume() chan struct{} {
 func IsPrintable(key rune) bool {
 	isInSurrogateArea := key >= 0xd800 && key <= 0xdbff
 	return key >= 32 && !isInSurrogateArea
-}
-
-// translate Esc[X
-func escapeExKey(key *escapeKeyPair) rune {
-	var r rune
-	switch key.typ {
-	case 'D':
-		r = CharBackward
-	case 'C':
-		r = CharForward
-	case 'A':
-		r = CharPrev
-	case 'B':
-		r = CharNext
-	case 'H':
-		r = CharLineStart
-	case 'F':
-		r = CharLineEnd
-	case '~':
-		if key.attr == "3" {
-			r = CharDelete
-		}
-	default:
-	}
-	return r
-}
-
-// translate EscOX SS3 codes for up/down/etc.
-func escapeSS3Key(key *escapeKeyPair) rune {
-	var r rune
-	switch key.typ {
-	case 'D':
-		r = CharBackward
-	case 'C':
-		r = CharForward
-	case 'A':
-		r = CharPrev
-	case 'B':
-		r = CharNext
-	case 'H':
-		r = CharLineStart
-	case 'F':
-		r = CharLineEnd
-	default:
-	}
-	return r
-}
-
-type escapeKeyPair struct {
-	attr string
-	typ  rune
-}
-
-func (e *escapeKeyPair) Get2() (int, int, bool) {
-	sp := strings.Split(e.attr, ";")
-	if len(sp) < 2 {
-		return -1, -1, false
-	}
-	s1, err := strconv.Atoi(sp[0])
-	if err != nil {
-		return -1, -1, false
-	}
-	s2, err := strconv.Atoi(sp[1])
-	if err != nil {
-		return -1, -1, false
-	}
-	return s1, s2, true
-}
-
-func readEscKey(r rune, reader *bufio.Reader) *escapeKeyPair {
-	p := escapeKeyPair{}
-	buf := bytes.NewBuffer(nil)
-	for {
-		if r == ';' {
-		} else if unicode.IsNumber(r) {
-		} else {
-			p.typ = r
-			break
-		}
-		buf.WriteRune(r)
-		r, _, _ = reader.ReadRune()
-	}
-	p.attr = buf.String()
-	return &p
-}
-
-// translate EscX to Meta+X
-func escapeKey(r rune, reader *bufio.Reader) rune {
-	switch r {
-	case 'b':
-		r = MetaBackward
-	case 'f':
-		r = MetaForward
-	case 'd':
-		r = MetaDelete
-	case CharTranspose:
-		r = MetaTranspose
-	case CharBackspace:
-		r = MetaBackspace
-	case 'O':
-		d, _, _ := reader.ReadRune()
-		switch d {
-		case 'H':
-			r = CharLineStart
-		case 'F':
-			r = CharLineEnd
-		default:
-			reader.UnreadRune()
-		}
-	case CharEsc:
-
-	}
-	return r
 }
 
 // split prompt + runes into lines by screenwidth starting from an offset.
