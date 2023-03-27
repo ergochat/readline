@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ergochat/readline/internal/ansi"
+	"github.com/ergochat/readline/internal/platform"
 )
 
 const (
@@ -139,9 +140,7 @@ func (t *Terminal) SleepToResume() {
 	defer atomic.StoreInt32(&t.sleeping, 0)
 
 	t.ExitRawMode()
-	ch := WaitForResume()
-	SuspendMe()
-	<-ch
+	platform.SuspendProcess()
 	t.EnterRawMode()
 }
 

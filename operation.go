@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/ergochat/readline/internal/platform"
 	"github.com/ergochat/readline/internal/runes"
 )
 
@@ -245,11 +246,13 @@ func (o *Operation) readline(deadline chan struct{}) ([]rune, error) {
 			}
 			o.buf.Backspace()
 		case CharCtrlZ:
-			o.buf.Clean()
-			o.t.SleepToResume()
-			o.Refresh()
+			if !platform.IsWindows {
+				o.buf.Clean()
+				o.t.SleepToResume()
+				o.Refresh()
+			}
 		case CharCtrlL:
-			ClearScreen(o.w)
+			platform.ClearScreen(o.w)
 			o.buf.SetOffset(cursorPosition{1,1})
 			o.Refresh()
 		case MetaBackspace, CharCtrlW:
@@ -447,7 +450,9 @@ func (o *Operation) getAndSetOffset(deadline chan struct{}) {
 	// the screen but the next character would actually be printed
 	// at the beginning of the next line.
 	// TODO ???
-	o.t.Write([]byte(" \b"))
+	if !platform.IsWindows {
+		o.t.Write([]byte(" \b"))
+	}
 
 	if offset, err := o.t.GetCursorPosition(deadline); err == nil {
 		o.buf.SetOffset(offset)

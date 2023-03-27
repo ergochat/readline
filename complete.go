@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/ergochat/readline/internal/runes"
+	"github.com/ergochat/readline/internal/platform"
 )
 
 type AutoCompleter interface {
@@ -329,7 +330,7 @@ func (o *opCompleter) CompleteRefresh() {
 		cLines := 1
 		if tWidth > 0 {
 			sWidth := 0
-			if isWindows && inSelect {
+			if platform.IsWindows && inSelect {
 				sWidth = 1 // adjust for hightlighting on Windows
 			}
 			cLines = (cWidth + sWidth) / tWidth
@@ -364,7 +365,7 @@ func (o *opCompleter) CompleteRefresh() {
 		if colIdx >= o.candidateColNum {
 			lines += cLines
 			colIdx = 0
-			if isWindows {
+			if platform.IsWindows {
 				// Windows EOL edge-case.
 				buf.WriteString("\b")
 			}
@@ -426,7 +427,7 @@ func (o *opCompleter) pagerRefresh() (stayInMode bool) {
 		}
 		colIdx++
 		if colIdx >= o.candidateColNum {
-			if isWindows {
+			if platform.IsWindows {
 				// Windows EOL edge-case.
 				buf.WriteString("\b")
 			}

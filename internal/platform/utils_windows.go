@@ -1,21 +1,21 @@
-// +build windows
+//go:build windows
 
-package readline
+package platform
 
 import (
 	"io"
 	"syscall"
 )
 
-func SuspendMe() {
+const (
+	IsWindows = true
+)
+
+func SuspendProcess() {
 }
 
 func GetStdin() int {
 	return int(syscall.Stdin)
-}
-
-func init() {
-	isWindows = true
 }
 
 // get width of the terminal

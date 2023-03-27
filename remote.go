@@ -10,6 +10,8 @@ import (
 	"os"
 	"sync"
 	"sync/atomic"
+
+	"github.com/ergochat/readline/internal/platform"
 )
 
 type MsgType int16
@@ -321,7 +323,7 @@ func (r *RemoteCli) init() error {
 	}
 
 	// register sig for width changed
-	DefaultOnWidthChanged(func() {
+	platform.DefaultOnWidthChanged(func() {
 		r.reportWidth()
 	})
 	return nil
@@ -343,7 +345,7 @@ func (r *RemoteCli) Write(b []byte) (int, error) {
 }
 
 func (r *RemoteCli) reportWidth() error {
-	screenWidth := GetScreenWidth()
+	screenWidth := platform.GetScreenWidth()
 	data := make([]byte, 2)
 	binary.BigEndian.PutUint16(data, uint16(screenWidth))
 	msg := NewMessage(T_WIDTH_REPORT, data)
@@ -359,7 +361,7 @@ func (r *RemoteCli) reportIsTerminal() error {
 	if r.isTerminal != nil {
 		isTerminal = *r.isTerminal
 	} else {
-		isTerminal = DefaultIsTerminal()
+		isTerminal = platform.DefaultIsTerminal()
 	}
 	data := make([]byte, 2)
 	if isTerminal {

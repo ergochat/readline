@@ -1,6 +1,6 @@
-// +build windows
+//go:build windows
 
-package readline
+package platform
 
 import (
 	"reflect"

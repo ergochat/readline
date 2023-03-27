@@ -4,16 +4,11 @@ import (
 	"container/list"
 	"fmt"
 	"os"
-	"strconv"
 	"sync"
-	"time"
 
+	"github.com/ergochat/readline/internal/platform"
 	"github.com/ergochat/readline/internal/runes"
 	"github.com/ergochat/readline/internal/term"
-)
-
-var (
-	isWindows = false
 )
 
 const (
@@ -53,31 +48,6 @@ const (
 	MetaTranspose
 	MetaShiftTab
 )
-
-// WaitForResume need to call before current process got suspend.
-// It will run a ticker until a long duration is occurs,
-// which means this process is resumed.
-func WaitForResume() chan struct{} {
-	ch := make(chan struct{})
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		ticker := time.NewTicker(10 * time.Millisecond)
-		t := time.Now()
-		wg.Done()
-		for {
-			now := <-ticker.C
-			if now.Sub(t) > 100*time.Millisecond {
-				break
-			}
-			t = now
-		}
-		ticker.Stop()
-		ch <- struct{}{}
-	}()
-	wg.Wait()
-	return ch
-}
 
 func IsPrintable(key rune) bool {
 	isInSurrogateArea := key >= 0xd800 && key <= 0xdbff
@@ -134,17 +104,6 @@ func IsWordBreak(i rune) bool {
 	return false
 }
 
-func GetInt(s []string, def int) int {
-	if len(s) == 0 {
-		return def
-	}
-	c, err := strconv.Atoi(s[0])
-	if err != nil {
-		return def
-	}
-	return c
-}
-
 type rawModeHandler struct {
 	sync.Mutex
 	state *term.State
@@ -153,7 +112,7 @@ type rawModeHandler struct {
 func (r *rawModeHandler) Enter() (err error) {
 	r.Lock()
 	defer r.Unlock()
-	r.state, err = term.MakeRaw(GetStdin())
+	r.state, err = term.MakeRaw(platform.GetStdin())
 	return err
 }
 
@@ -163,7 +122,7 @@ func (r *rawModeHandler) Exit() error {
 	if r.state == nil {
 		return nil
 	}
-	err := term.Restore(GetStdin(), r.state)
+	err := term.Restore(platform.GetStdin(), r.state)
 	if err == nil {
 		r.state = nil
 	}

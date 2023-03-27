@@ -1,8 +1,9 @@
-// +build aix darwin dragonfly freebsd linux,!appengine netbsd openbsd os400 solaris
+//go:build aix || darwin || dragonfly || freebsd || (linux && !appengine) || netbsd || openbsd || os400 || solaris
 
-package readline
+package platform
 
 import (
+	"context"
 	"io"
 	"os"
 	"os/signal"
@@ -12,6 +13,10 @@ import (
 	"github.com/ergochat/readline/internal/term"
 )
 
+const (
+	IsWindows = false
+)
+
 type winsize struct {
 	Row    uint16
 	Col    uint16
@@ -19,14 +24,19 @@ type winsize struct {
 	Ypixel uint16
 }
 
-// SuspendMe use to send suspend signal to myself, when we in the raw mode.
-// For OSX it need to send to parent's pid
-// For Linux it need to send to myself
-func SuspendMe() {
-	p, _ := os.FindProcess(os.Getppid())
+// SuspendProcess suspends the process with SIGTSTP,
+// then blocks until it is resumed.
+func SuspendProcess() {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGCONT)
+	defer stop()
+
+	p, err := os.FindProcess(os.Getpid())
+	if err != nil {
+		panic(err)
+	}
 	p.Signal(syscall.SIGTSTP)
-	p, _ = os.FindProcess(os.Getpid())
-	p.Signal(syscall.SIGTSTP)
+	// wait for SIGCONT
+	<-ctx.Done()
 }
 
 // get width of the terminal
