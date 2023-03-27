@@ -62,7 +62,7 @@ func (o *Operation) write(target io.Writer, b []byte) (int, error) {
 		// Adjust the prompt start position by b
 		rout := runes.ColorFilter([]rune(string(b[:])))
 		tWidth, _ := o.t.GetWidthHeight()
-		sp := SplitByLine(rout, []rune{}, o.buf.ppos, tWidth, 1)
+		sp := runes.SplitByLine(rout, []rune{}, o.buf.ppos, tWidth, 1)
 		if len(sp) > 1 {
 			o.buf.ppos = len(sp[len(sp)-1])
 		} else {

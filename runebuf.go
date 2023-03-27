@@ -223,11 +223,11 @@ func (r *RuneBuffer) DeleteWord() {
 		return
 	}
 	init := r.idx
-	for init < len(r.buf) && IsWordBreak(r.buf[init]) {
+	for init < len(r.buf) && runes.IsWordBreak(r.buf[init]) {
 		init++
 	}
 	for i := init + 1; i < len(r.buf); i++ {
-		if !IsWordBreak(r.buf[i]) && IsWordBreak(r.buf[i-1]) {
+		if !runes.IsWordBreak(r.buf[i]) && runes.IsWordBreak(r.buf[i-1]) {
 			r.pushKill(r.buf[r.idx : i-1])
 			r.Refresh(func() {
 				r.buf = append(r.buf[:r.idx], r.buf[i-1:]...)
@@ -245,7 +245,7 @@ func (r *RuneBuffer) MoveToPrevWord() (success bool) {
 		}
 
 		for i := r.idx - 1; i > 0; i-- {
-			if !IsWordBreak(r.buf[i]) && IsWordBreak(r.buf[i-1]) {
+			if !runes.IsWordBreak(r.buf[i]) && runes.IsWordBreak(r.buf[i-1]) {
 				r.idx = i
 				success = true
 				return
@@ -301,7 +301,7 @@ func (r *RuneBuffer) Transpose() {
 func (r *RuneBuffer) MoveToNextWord() {
 	r.Refresh(func() {
 		for i := r.idx + 1; i < len(r.buf); i++ {
-			if !IsWordBreak(r.buf[i]) && IsWordBreak(r.buf[i-1]) {
+			if !runes.IsWordBreak(r.buf[i]) && runes.IsWordBreak(r.buf[i-1]) {
 				r.idx = i
 				return
 			}
@@ -318,13 +318,13 @@ func (r *RuneBuffer) MoveToEndWord() {
 			return
 		}
 		// if we are at the end of a word already, go to next
-		if !IsWordBreak(r.buf[r.idx]) && IsWordBreak(r.buf[r.idx+1]) {
+		if !runes.IsWordBreak(r.buf[r.idx]) && runes.IsWordBreak(r.buf[r.idx+1]) {
 			r.idx++
 		}
 
 		// keep going until at the end of a word
 		for i := r.idx + 1; i < len(r.buf); i++ {
-			if IsWordBreak(r.buf[i]) && !IsWordBreak(r.buf[i-1]) {
+			if runes.IsWordBreak(r.buf[i]) && !runes.IsWordBreak(r.buf[i-1]) {
 				r.idx = i - 1
 				return
 			}
@@ -339,7 +339,7 @@ func (r *RuneBuffer) BackEscapeWord() {
 			return
 		}
 		for i := r.idx - 1; i >= 0; i-- {
-			if i == 0 || (IsWordBreak(r.buf[i-1])) && !IsWordBreak(r.buf[i]) {
+			if i == 0 || (runes.IsWordBreak(r.buf[i-1])) && !runes.IsWordBreak(r.buf[i]) {
 				r.pushKill(r.buf[i:r.idx])
 				r.buf = append(r.buf[:i], r.buf[r.idx:]...)
 				r.idx = i
@@ -436,9 +436,9 @@ func (r *RuneBuffer) getSplitByLine(rs []rune, nextWidth int) [][]rune {
 	if r.cfg.EnableMask {
 		w := runes.Width(r.cfg.MaskRune)
 		masked := []rune(strings.Repeat(string(r.cfg.MaskRune), len(rs)))
-		return SplitByLine(runes.ColorFilter(r.prompt), masked, r.ppos, tWidth, w)
+		return runes.SplitByLine(runes.ColorFilter(r.prompt), masked, r.ppos, tWidth, w)
 	} else {
-		return SplitByLine(runes.ColorFilter(r.prompt), rs, r.ppos, tWidth, nextWidth)
+		return runes.SplitByLine(runes.ColorFilter(r.prompt), rs, r.ppos, tWidth, nextWidth)
 	}
 }
 
