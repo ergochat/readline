@@ -257,6 +257,8 @@ func (o *Operation) readline(deadline chan struct{}) ([]rune, error) {
 			o.Refresh()
 		case MetaBackspace, CharCtrlW:
 			o.buf.BackEscapeWord()
+		case MetaShiftTab:
+			// no-op
 		case CharCtrlY:
 			o.buf.Yank()
 		case CharEnter, CharCtrlJ:
