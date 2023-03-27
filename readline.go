@@ -23,6 +23,8 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+
+	"github.com/ergochat/readline/internal/platform"
 )
 
 type Instance struct {
@@ -138,13 +140,13 @@ func (c *Config) Init() error {
 		c.AutoComplete = &TabCompleter{}
 	}
 	if c.FuncGetWidth == nil {
-		c.FuncGetWidth = GetScreenWidth
+		c.FuncGetWidth = platform.GetScreenWidth
 	}
 	if c.FuncGetSize == nil {
-		c.FuncGetSize = GetScreenSize
+		c.FuncGetSize = platform.GetScreenSize
 	}
 	if c.FuncIsTerminal == nil {
-		c.FuncIsTerminal = DefaultIsTerminal
+		c.FuncIsTerminal = platform.DefaultIsTerminal
 	}
 	rm := new(rawModeHandler)
 	if c.FuncMakeRaw == nil {
@@ -154,7 +156,7 @@ func (c *Config) Init() error {
 		c.FuncExitRaw = rm.Exit
 	}
 	if c.FuncOnWidthChanged == nil {
-		c.FuncOnWidthChanged = DefaultOnSizeChanged
+		c.FuncOnWidthChanged = platform.DefaultOnSizeChanged
 	}
 	if c.Painter == nil {
 		c.Painter = &defaultPainter{}
@@ -271,6 +273,7 @@ func (i *Instance) ReadSlice() ([]byte, error) {
 // idempotent, so it can be called multiple times.
 func (i *Instance) Close() error {
 	i.closeOnce.Do(func() {
+		// TODO reorder these?
 		i.operation.Close()
 		i.closeErr = i.terminal.Close()
 	})
@@ -318,7 +321,7 @@ func (i *Instance) SetConfig(cfg *Config) error {
 		return err
 	}
 	i.operation.SetConfig(cfg)
-	i.terminal.setConfig(cfg)
+	i.terminal.SetConfig(cfg)
 	return nil
 }
 

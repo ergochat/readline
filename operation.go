@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/ergochat/readline/internal/platform"
 	"github.com/ergochat/readline/internal/runes"
 )
 
@@ -13,21 +14,11 @@ var (
 	ErrInterrupt = errors.New("Interrupt")
 )
 
-type InterruptError struct {
-	Line []rune
-}
-
-func (*InterruptError) Error() string {
-	return "Interrupted"
-}
-
 type Operation struct {
 	m       sync.Mutex
 	cfg     *Config
 	t       *Terminal
 	buf     *RuneBuffer
-	outchan chan []rune
-	errchan chan error
 	w       io.Writer
 	wrapOut atomic.Pointer[wrapWriter]
 	wrapErr atomic.Pointer[wrapWriter]
@@ -71,7 +62,7 @@ func (o *Operation) write(target io.Writer, b []byte) (int, error) {
 		// Adjust the prompt start position by b
 		rout := runes.ColorFilter([]rune(string(b[:])))
 		tWidth, _ := o.t.GetWidthHeight()
-		sp := SplitByLine(rout, []rune{}, o.buf.ppos, tWidth, 1)
+		sp := runes.SplitByLine(rout, []rune{}, o.buf.ppos, tWidth, 1)
 		if len(sp) > 1 {
 			o.buf.ppos = len(sp[len(sp)-1])
 		} else {
@@ -92,8 +83,6 @@ func NewOperation(t *Terminal, cfg *Config) *Operation {
 	op := &Operation{
 		t:       t,
 		buf:     NewRuneBuffer(t, cfg.Prompt, cfg),
-		outchan: make(chan []rune),
-		errchan: make(chan error, 1),
 	}
 	op.w = op.buf.w
 	op.SetConfig(cfg)
@@ -101,7 +90,6 @@ func NewOperation(t *Terminal, cfg *Config) *Operation {
 	op.completer = newOpCompleter(op.buf.w, op)
 	op.password = newOpPassword(op)
 	op.cfg.FuncOnWidthChanged(t.OnSizeChange)
-	go op.ioloop()
 	return op
 }
 
@@ -120,43 +108,38 @@ func (o *Operation) GetConfig() *Config {
 	return &cfg
 }
 
-func (o *Operation) ioloop() {
+func (o *Operation) readline(deadline chan struct{}) ([]rune, error) {
 	for {
 		keepInSearchMode := false
 		keepInCompleteMode := false
-		r := o.t.GetRune()
+		r, err := o.t.GetRune(deadline)
 
-		if o.GetConfig().FuncFilterInputRune != nil {
+		if err == nil && o.GetConfig().FuncFilterInputRune != nil {
 			var process bool
 			r, process = o.GetConfig().FuncFilterInputRune(r)
 			if !process {
-				o.t.KickRead()
 				o.buf.Refresh(nil) // to refresh the line
 				continue           // ignore this rune
 			}
 		}
 
-		if r == 0 { // io.EOF
+		if err == io.EOF {
 			if o.buf.Len() == 0 {
 				o.buf.Clean()
-				select {
-				case o.errchan <- io.EOF:
-				}
-				break
+				return nil, io.EOF
 			} else {
 				// if stdin got io.EOF and there is something left in buffer,
 				// let's flush them by sending CharEnter.
 				// And we will got io.EOF int next loop.
 				r = CharEnter
 			}
+		} else if err != nil {
+			return nil, err
 		}
 		isUpdateHistory := true
 
 		if o.completer.IsInPagerMode() {
 			keepInCompleteMode = o.completer.HandlePagerMode(r)
-			if r == CharEnter || r == CharCtrlJ || r == CharInterrupt {
-				o.t.KickRead()
-			}
 			if !keepInCompleteMode {
 				o.buf.Refresh(nil)
 			}
@@ -175,7 +158,6 @@ func (o *Operation) ioloop() {
 				o.history.Update(o.buf.Runes(), false)
 				fallthrough
 			case CharInterrupt:
-				o.t.KickRead()
 				fallthrough
 			case CharBell:
 				continue
@@ -183,11 +165,20 @@ func (o *Operation) ioloop() {
 		}
 
 		if o.vim.IsEnableVimMode() {
-			r = o.vim.HandleVim(r, o.t.GetRune)
+			r = o.vim.HandleVim(r, func() rune {
+				r, err := o.t.GetRune(deadline)
+				if err == nil {
+					return r
+				} else {
+					return 0
+				}
+			})
 			if r == 0 {
 				continue
 			}
 		}
+
+		var result []rune
 
 		switch r {
 		case CharBell:
@@ -255,15 +246,19 @@ func (o *Operation) ioloop() {
 			}
 			o.buf.Backspace()
 		case CharCtrlZ:
-			o.buf.Clean()
-			o.t.SleepToResume()
-			o.Refresh()
+			if !platform.IsWindows {
+				o.buf.Clean()
+				o.t.SleepToResume()
+				o.Refresh()
+			}
 		case CharCtrlL:
-			ClearScreen(o.w)
-			o.buf.SetOffset("1;1")
+			platform.ClearScreen(o.w)
+			o.buf.SetOffset(cursorPosition{1,1})
 			o.Refresh()
 		case MetaBackspace, CharCtrlW:
 			o.buf.BackEscapeWord()
+		case MetaShiftTab:
+			// no-op
 		case CharCtrlY:
 			o.buf.Yank()
 		case CharEnter, CharCtrlJ:
@@ -284,7 +279,7 @@ func (o *Operation) ioloop() {
 				o.buf.Clean()
 				data = o.buf.Reset()
 			}
-			o.outchan <- data
+			result = data
 			if !o.GetConfig().DisableAutoSaveHistory {
 				// ignore IO error
 				_ = o.history.New(data)
@@ -311,7 +306,6 @@ func (o *Operation) ioloop() {
 			}
 		case CharDelete:
 			if o.buf.Len() > 0 || !o.IsNormalMode() {
-				o.t.KickRead()
 				if !o.buf.Delete() {
 					o.t.Bell()
 				}
@@ -325,18 +319,16 @@ func (o *Operation) ioloop() {
 			o.buf.Reset()
 			isUpdateHistory = false
 			o.history.Revert()
-			o.errchan <- io.EOF
 			if o.GetConfig().UniqueEditLine {
 				o.buf.Clean()
 			}
+			return nil, io.EOF
 		case CharInterrupt:
 			if o.search.IsSearchMode() {
-				o.t.KickRead()
 				o.search.ExitSearchMode(true)
 				break
 			}
 			if o.completer.IsInCompleteMode() {
-				o.t.KickRead()
 				o.completer.ExitCompleteMode(true)
 				o.buf.Refresh(nil)
 				break
@@ -353,7 +345,7 @@ func (o *Operation) ioloop() {
 			}
 			isUpdateHistory = false
 			o.history.Revert()
-			o.errchan <- &InterruptError{remain}
+			return nil, ErrInterrupt
 		default:
 			if o.search.IsSearchMode() {
 				o.search.SearchChar(r)
@@ -397,6 +389,10 @@ func (o *Operation) ioloop() {
 			o.history.Update(o.buf.Runes(), false)
 		}
 		o.m.Unlock()
+
+		if result != nil {
+			return result, nil
+		}
 	}
 }
 
@@ -426,33 +422,42 @@ func (o *Operation) Runes() ([]rune, error) {
 	// so we don't race with wrapWriter trying to write and refresh.
 	o.m.Lock()
 	o.isPrompting = true
-
 	// Query cursor position before printing the prompt as there
-	// maybe existing text on the same line that ideally we don't
-	// want to overwrite and cause prompt to jump left. Note that
-	// this is not perfect but works the majority of the time.
-	o.buf.getAndSetOffset()
+	// may be existing text on the same line that ideally we don't
+	// want to overwrite and cause prompt to jump left.
+	o.getAndSetOffset(nil)
 	o.buf.Print() // print prompt & buffer contents
-	o.t.KickRead()
-
 	// Prompt written safely, unlock until read completes and then
 	// lock again to unset.
 	o.m.Unlock()
+
 	defer func() {
 		o.m.Lock()
 		o.isPrompting = false
-		o.buf.SetOffset("1;1")
+		o.buf.SetOffset(cursorPosition{1,1})
 		o.m.Unlock()
 	}()
 
-	select {
-	case r := <-o.outchan:
-		return r, nil
-	case err := <-o.errchan:
-		if e, ok := err.(*InterruptError); ok {
-			return e.Line, ErrInterrupt
-		}
-		return nil, err
+	return o.readline(nil)
+}
+
+func (o *Operation) getAndSetOffset(deadline chan struct{}) {
+	// TODO(#7) cache the `interactive` status in Config itself
+	if !o.buf.interactive {
+		return
+	}
+
+	// Handle lineedge cases where existing text before before
+	// the prompt is printed would leave us at the right edge of
+	// the screen but the next character would actually be printed
+	// at the beginning of the next line.
+	// TODO ???
+	if !platform.IsWindows {
+		o.t.Write([]byte(" \b"))
+	}
+
+	if offset, err := o.t.GetCursorPosition(deadline); err == nil {
+		o.buf.SetOffset(offset)
 	}
 }
 
@@ -487,10 +492,6 @@ func (o *Operation) Slice() ([]byte, error) {
 }
 
 func (o *Operation) Close() {
-	select {
-	case o.errchan <- io.EOF:
-	default:
-	}
 	o.history.Close()
 }
 

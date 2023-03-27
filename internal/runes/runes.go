@@ -221,3 +221,44 @@ func TrimSpaceLeft(in []rune) []rune {
 	}
 	return in[firstIndex:]
 }
+
+func IsWordBreak(i rune) bool {
+	switch {
+	case i >= 'a' && i <= 'z':
+	case i >= 'A' && i <= 'Z':
+	case i >= '0' && i <= '9':
+	default:
+		return true
+	}
+	return false
+}
+
+// split prompt + runes into lines by screenwidth starting from an offset.
+// the prompt should be filtered before passing to only its display runes.
+// if you know the width of the next character, pass it in as it is used
+// to decide if we generate an extra empty rune array to show next is new
+// line.
+func SplitByLine(prompt, rs []rune, offset, screenWidth, nextWidth int) [][]rune {
+	ret := make([][]rune, 0)
+	prs := append(prompt, rs...)
+	si := 0
+	currentWidth := offset
+	for i, r := range prs {
+		w := Width(r)
+		if r == '\n' {
+			ret = append(ret, prs[si:i+1])
+			si = i + 1
+			currentWidth = 0
+		} else if currentWidth + w > screenWidth {
+			ret = append(ret, prs[si:i])
+			si = i
+			currentWidth = 0
+		}
+		currentWidth += w
+	}
+	ret = append(ret, prs[si:len(prs)])
+	if currentWidth + nextWidth > screenWidth {
+		ret = append(ret, []rune{})
+	}
+	return ret
+}

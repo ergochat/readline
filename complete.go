@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/ergochat/readline/internal/runes"
+	"github.com/ergochat/readline/internal/platform"
 )
 
 type AutoCompleter interface {
@@ -187,7 +188,7 @@ func (o *opCompleter) HandleCompleteSelect(r rune) (stayInMode bool) {
 			tmpChoise -= o.getMatrixSize()
 		}
 		o.candidateChoise = tmpChoise
-	case CharBackward:
+	case CharBackward, MetaShiftTab:
 		o.nextCandidate(-1)
 	case CharPrev:
 		colNum := 1
@@ -329,7 +330,7 @@ func (o *opCompleter) CompleteRefresh() {
 		cLines := 1
 		if tWidth > 0 {
 			sWidth := 0
-			if isWindows && inSelect {
+			if platform.IsWindows && inSelect {
 				sWidth = 1 // adjust for hightlighting on Windows
 			}
 			cLines = (cWidth + sWidth) / tWidth
@@ -364,7 +365,7 @@ func (o *opCompleter) CompleteRefresh() {
 		if colIdx >= o.candidateColNum {
 			lines += cLines
 			colIdx = 0
-			if isWindows {
+			if platform.IsWindows {
 				// Windows EOL edge-case.
 				buf.WriteString("\b")
 			}
@@ -389,7 +390,7 @@ func (o *opCompleter) pagerRefresh() (stayInMode bool) {
 	buf := bufio.NewWriter(o.w)
 	firstPage := o.candidateChoise == 0
 	if firstPage {
-		o.op.buf.SetOffset("1;1")     // paging, so reset any prompt offset
+		o.op.buf.SetOffset(cursorPosition{1,1})     // paging, so reset any prompt offset
 		// move down from cursor to where candidates should start
 		lineCnt := o.op.buf.CursorLineCount()
 		buf.Write(bytes.Repeat([]byte("\n"), lineCnt))
@@ -426,7 +427,7 @@ func (o *opCompleter) pagerRefresh() (stayInMode bool) {
 		}
 		colIdx++
 		if colIdx >= o.candidateColNum {
-			if isWindows {
+			if platform.IsWindows {
 				// Windows EOL edge-case.
 				buf.WriteString("\b")
 			}

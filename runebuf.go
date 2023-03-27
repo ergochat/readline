@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/ergochat/readline/internal/platform"
 	"github.com/ergochat/readline/internal/runes"
 )
 
@@ -27,7 +28,7 @@ type RuneBuffer struct {
 
 	bck *runeBufferBck
 
-	offset string          // is offset useful? scrolling means row varies
+	cpos cursorPosition
 	ppos   int             // prompt start position (0 == column 1)
 
 	lastKill []rune
@@ -222,11 +223,11 @@ func (r *RuneBuffer) DeleteWord() {
 		return
 	}
 	init := r.idx
-	for init < len(r.buf) && IsWordBreak(r.buf[init]) {
+	for init < len(r.buf) && runes.IsWordBreak(r.buf[init]) {
 		init++
 	}
 	for i := init + 1; i < len(r.buf); i++ {
-		if !IsWordBreak(r.buf[i]) && IsWordBreak(r.buf[i-1]) {
+		if !runes.IsWordBreak(r.buf[i]) && runes.IsWordBreak(r.buf[i-1]) {
 			r.pushKill(r.buf[r.idx : i-1])
 			r.Refresh(func() {
 				r.buf = append(r.buf[:r.idx], r.buf[i-1:]...)
@@ -244,7 +245,7 @@ func (r *RuneBuffer) MoveToPrevWord() (success bool) {
 		}
 
 		for i := r.idx - 1; i > 0; i-- {
-			if !IsWordBreak(r.buf[i]) && IsWordBreak(r.buf[i-1]) {
+			if !runes.IsWordBreak(r.buf[i]) && runes.IsWordBreak(r.buf[i-1]) {
 				r.idx = i
 				success = true
 				return
@@ -300,7 +301,7 @@ func (r *RuneBuffer) Transpose() {
 func (r *RuneBuffer) MoveToNextWord() {
 	r.Refresh(func() {
 		for i := r.idx + 1; i < len(r.buf); i++ {
-			if !IsWordBreak(r.buf[i]) && IsWordBreak(r.buf[i-1]) {
+			if !runes.IsWordBreak(r.buf[i]) && runes.IsWordBreak(r.buf[i-1]) {
 				r.idx = i
 				return
 			}
@@ -317,13 +318,13 @@ func (r *RuneBuffer) MoveToEndWord() {
 			return
 		}
 		// if we are at the end of a word already, go to next
-		if !IsWordBreak(r.buf[r.idx]) && IsWordBreak(r.buf[r.idx+1]) {
+		if !runes.IsWordBreak(r.buf[r.idx]) && runes.IsWordBreak(r.buf[r.idx+1]) {
 			r.idx++
 		}
 
 		// keep going until at the end of a word
 		for i := r.idx + 1; i < len(r.buf); i++ {
-			if IsWordBreak(r.buf[i]) && !IsWordBreak(r.buf[i-1]) {
+			if runes.IsWordBreak(r.buf[i]) && !runes.IsWordBreak(r.buf[i-1]) {
 				r.idx = i - 1
 				return
 			}
@@ -338,7 +339,7 @@ func (r *RuneBuffer) BackEscapeWord() {
 			return
 		}
 		for i := r.idx - 1; i >= 0; i-- {
-			if i == 0 || (IsWordBreak(r.buf[i-1])) && !IsWordBreak(r.buf[i]) {
+			if i == 0 || (runes.IsWordBreak(r.buf[i-1])) && !runes.IsWordBreak(r.buf[i]) {
 				r.pushKill(r.buf[i:r.idx])
 				r.buf = append(r.buf[:i], r.buf[r.idx:]...)
 				r.idx = i
@@ -423,7 +424,7 @@ func (r *RuneBuffer) MoveTo(ch rune, prevChar, reverse bool) (success bool) {
 }
 
 func (r *RuneBuffer) isInLineEdge() bool {
-	if isWindows {
+	if platform.IsWindows {
 		return false
 	}
 	sp := r.getSplitByLine(r.buf, 1)
@@ -435,9 +436,9 @@ func (r *RuneBuffer) getSplitByLine(rs []rune, nextWidth int) [][]rune {
 	if r.cfg.EnableMask {
 		w := runes.Width(r.cfg.MaskRune)
 		masked := []rune(strings.Repeat(string(r.cfg.MaskRune), len(rs)))
-		return SplitByLine(runes.ColorFilter(r.prompt), masked, r.ppos, tWidth, w)
+		return runes.SplitByLine(runes.ColorFilter(r.prompt), masked, r.ppos, tWidth, w)
 	} else {
-		return SplitByLine(runes.ColorFilter(r.prompt), rs, r.ppos, tWidth, nextWidth)
+		return runes.SplitByLine(runes.ColorFilter(r.prompt), rs, r.ppos, tWidth, nextWidth)
 	}
 }
 
@@ -485,37 +486,17 @@ func (r *RuneBuffer) refresh(f func()) {
 	r.print()
 }
 
-// getAndSetOffset queries the terminal for the current cursor position by
-// writing a control sequence to the terminal. This call is asynchronous
-// and it returns before any offset has actually been set as the terminal
-// will write the offset back to us via stdin and there may already be 
-// other data in the stdin buffer ahead of it.
-// This function is called at the start of readline each time.
-func (r *RuneBuffer) getAndSetOffset() {
-	if !r.interactive {
-		return
-	}
-	if !isWindows {
-		// Handle lineedge cases where existing text before before
-		// the prompt is printed would leave us at the right edge of
-		// the screen but the next character would actually be printed
-		// at the beginning of the next line.
-		r.w.Write([]byte(" \b"))
-	}
-	r.w.GetOffset(r.SetOffset)
-}
-
-func (r *RuneBuffer) SetOffset(offset string) {
+func (r *RuneBuffer) SetOffset(position cursorPosition) {
 	r.Lock()
 	defer r.Unlock()
-	r.setOffset(offset)
+	r.setOffset(position)
 }
 
-func (r *RuneBuffer) setOffset(offset string) {
-	r.offset = offset
+func (r *RuneBuffer) setOffset(cpos cursorPosition) {
+	r.cpos = cpos
 	tWidth, _ := r.w.GetWidthHeight()
-	if _, c, ok := (&escapeKeyPair{attr:offset}).Get2(); ok && c > 0 && c < tWidth {
-		r.ppos = c - 1  // c should be 1..tWidth
+	if cpos.col > 0 && cpos.col < tWidth {
+		r.ppos = cpos.col - 1  // c should be 1..tWidth
 	} else {
 		r.ppos = 0
 	}

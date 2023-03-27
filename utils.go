@@ -1,23 +1,13 @@
 package readline
 
 import (
-	"bufio"
-	"bytes"
 	"container/list"
 	"fmt"
 	"os"
-	"strconv"
-	"strings"
 	"sync"
-	"time"
-	"unicode"
 
-	"github.com/ergochat/readline/internal/runes"
+	"github.com/ergochat/readline/internal/platform"
 	"github.com/ergochat/readline/internal/term"
-)
-
-var (
-	isWindows = false
 )
 
 const (
@@ -55,211 +45,8 @@ const (
 	MetaDelete
 	MetaBackspace
 	MetaTranspose
+	MetaShiftTab
 )
-
-// WaitForResume need to call before current process got suspend.
-// It will run a ticker until a long duration is occurs,
-// which means this process is resumed.
-func WaitForResume() chan struct{} {
-	ch := make(chan struct{})
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		ticker := time.NewTicker(10 * time.Millisecond)
-		t := time.Now()
-		wg.Done()
-		for {
-			now := <-ticker.C
-			if now.Sub(t) > 100*time.Millisecond {
-				break
-			}
-			t = now
-		}
-		ticker.Stop()
-		ch <- struct{}{}
-	}()
-	wg.Wait()
-	return ch
-}
-
-func IsPrintable(key rune) bool {
-	isInSurrogateArea := key >= 0xd800 && key <= 0xdbff
-	return key >= 32 && !isInSurrogateArea
-}
-
-// translate Esc[X
-func escapeExKey(key *escapeKeyPair) rune {
-	var r rune
-	switch key.typ {
-	case 'D':
-		r = CharBackward
-	case 'C':
-		r = CharForward
-	case 'A':
-		r = CharPrev
-	case 'B':
-		r = CharNext
-	case 'H':
-		r = CharLineStart
-	case 'F':
-		r = CharLineEnd
-	case '~':
-		if key.attr == "3" {
-			r = CharDelete
-		}
-	default:
-	}
-	return r
-}
-
-// translate EscOX SS3 codes for up/down/etc.
-func escapeSS3Key(key *escapeKeyPair) rune {
-	var r rune
-	switch key.typ {
-	case 'D':
-		r = CharBackward
-	case 'C':
-		r = CharForward
-	case 'A':
-		r = CharPrev
-	case 'B':
-		r = CharNext
-	case 'H':
-		r = CharLineStart
-	case 'F':
-		r = CharLineEnd
-	default:
-	}
-	return r
-}
-
-type escapeKeyPair struct {
-	attr string
-	typ  rune
-}
-
-func (e *escapeKeyPair) Get2() (int, int, bool) {
-	sp := strings.Split(e.attr, ";")
-	if len(sp) < 2 {
-		return -1, -1, false
-	}
-	s1, err := strconv.Atoi(sp[0])
-	if err != nil {
-		return -1, -1, false
-	}
-	s2, err := strconv.Atoi(sp[1])
-	if err != nil {
-		return -1, -1, false
-	}
-	return s1, s2, true
-}
-
-func readEscKey(r rune, reader *bufio.Reader) *escapeKeyPair {
-	p := escapeKeyPair{}
-	buf := bytes.NewBuffer(nil)
-	for {
-		if r == ';' {
-		} else if unicode.IsNumber(r) {
-		} else {
-			p.typ = r
-			break
-		}
-		buf.WriteRune(r)
-		r, _, _ = reader.ReadRune()
-	}
-	p.attr = buf.String()
-	return &p
-}
-
-// translate EscX to Meta+X
-func escapeKey(r rune, reader *bufio.Reader) rune {
-	switch r {
-	case 'b':
-		r = MetaBackward
-	case 'f':
-		r = MetaForward
-	case 'd':
-		r = MetaDelete
-	case CharTranspose:
-		r = MetaTranspose
-	case CharBackspace:
-		r = MetaBackspace
-	case 'O':
-		d, _, _ := reader.ReadRune()
-		switch d {
-		case 'H':
-			r = CharLineStart
-		case 'F':
-			r = CharLineEnd
-		default:
-			reader.UnreadRune()
-		}
-	case CharEsc:
-
-	}
-	return r
-}
-
-// split prompt + runes into lines by screenwidth starting from an offset.
-// the prompt should be filtered before passing to only its display runes.
-// if you know the width of the next character, pass it in as it is used
-// to decide if we generate an extra empty rune array to show next is new
-// line.
-func SplitByLine(prompt, rs []rune, offset, screenWidth, nextWidth int) [][]rune {
-	ret := make([][]rune, 0)
-	prs := append(prompt, rs...)
-	si := 0
-	currentWidth := offset
-	for i, r := range prs {
-		w := runes.Width(r)
-		if r == '\n' {
-			ret = append(ret, prs[si:i+1])
-			si = i + 1
-			currentWidth = 0
-		} else if currentWidth + w > screenWidth {
-			ret = append(ret, prs[si:i])
-			si = i
-			currentWidth = 0
-		}
-		currentWidth += w
-	}
-	ret = append(ret, prs[si:len(prs)])
-	if currentWidth + nextWidth > screenWidth {
-		ret = append(ret, []rune{})
-	}
-	return ret
-}
-
-// calculate how many lines for N character
-func LineCount(screenWidth, w int) int {
-	r := w / screenWidth
-	if w%screenWidth != 0 {
-		r++
-	}
-	return r
-}
-
-func IsWordBreak(i rune) bool {
-	switch {
-	case i >= 'a' && i <= 'z':
-	case i >= 'A' && i <= 'Z':
-	case i >= '0' && i <= '9':
-	default:
-		return true
-	}
-	return false
-}
-
-func GetInt(s []string, def int) int {
-	if len(s) == 0 {
-		return def
-	}
-	c, err := strconv.Atoi(s[0])
-	if err != nil {
-		return def
-	}
-	return c
-}
 
 type rawModeHandler struct {
 	sync.Mutex
@@ -269,7 +56,7 @@ type rawModeHandler struct {
 func (r *rawModeHandler) Enter() (err error) {
 	r.Lock()
 	defer r.Unlock()
-	r.state, err = term.MakeRaw(GetStdin())
+	r.state, err = term.MakeRaw(platform.GetStdin())
 	return err
 }
 
@@ -279,7 +66,7 @@ func (r *rawModeHandler) Exit() error {
 	if r.state == nil {
 		return nil
 	}
-	err := term.Restore(GetStdin(), r.state)
+	err := term.Restore(platform.GetStdin(), r.state)
 	if err == nil {
 		r.state = nil
 	}
