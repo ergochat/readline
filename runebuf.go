@@ -17,7 +17,7 @@ type runeBufferBck struct {
 	idx int
 }
 
-type RuneBuffer struct {
+type runeBuffer struct {
 	buf    []rune
 	idx    int
 	prompt []rune
@@ -36,17 +36,17 @@ type RuneBuffer struct {
 	sync.Mutex
 }
 
-func (r *RuneBuffer) pushKill(text []rune) {
+func (r *runeBuffer) pushKill(text []rune) {
 	r.lastKill = append([]rune{}, text...)
 }
 
-func (r *RuneBuffer) Backup() {
+func (r *runeBuffer) Backup() {
 	r.Lock()
 	r.bck = &runeBufferBck{r.buf, r.idx}
 	r.Unlock()
 }
 
-func (r *RuneBuffer) Restore() {
+func (r *runeBuffer) Restore() {
 	r.Refresh(func() {
 		if r.bck == nil {
 			return
@@ -56,8 +56,8 @@ func (r *RuneBuffer) Restore() {
 	})
 }
 
-func NewRuneBuffer(w *terminal, prompt string, cfg *Config) *RuneBuffer {
-	rb := &RuneBuffer{
+func newRuneBuffer(w *terminal, prompt string, cfg *Config) *runeBuffer {
+	rb := &runeBuffer{
 		w:           w,
 		interactive: cfg.useInteractive(),
 		cfg:         cfg,
@@ -66,36 +66,36 @@ func NewRuneBuffer(w *terminal, prompt string, cfg *Config) *RuneBuffer {
 	return rb
 }
 
-func (r *RuneBuffer) SetConfig(cfg *Config) {
+func (r *runeBuffer) SetConfig(cfg *Config) {
 	r.Lock()
 	r.cfg = cfg
 	r.interactive = cfg.useInteractive()
 	r.Unlock()
 }
 
-func (r *RuneBuffer) SetMask(m rune) {
+func (r *runeBuffer) SetMask(m rune) {
 	r.Lock()
 	r.cfg.MaskRune = m
 	r.Unlock()
 }
 
-func (r *RuneBuffer) CurrentWidth(x int) int {
+func (r *runeBuffer) CurrentWidth(x int) int {
 	r.Lock()
 	defer r.Unlock()
 	return runes.WidthAll(r.buf[:x])
 }
 
-func (r *RuneBuffer) PromptLen() int {
+func (r *runeBuffer) PromptLen() int {
 	r.Lock()
 	defer r.Unlock()
 	return r.promptLen()
 }
 
-func (r *RuneBuffer) promptLen() int {
+func (r *runeBuffer) promptLen() int {
 	return runes.WidthAll(runes.ColorFilter(r.prompt))
 }
 
-func (r *RuneBuffer) RuneSlice(i int) []rune {
+func (r *runeBuffer) RuneSlice(i int) []rune {
 	r.Lock()
 	defer r.Unlock()
 
@@ -109,7 +109,7 @@ func (r *RuneBuffer) RuneSlice(i int) []rune {
 	return rs
 }
 
-func (r *RuneBuffer) Runes() []rune {
+func (r *runeBuffer) Runes() []rune {
 	r.Lock()
 	newr := make([]rune, len(r.buf))
 	copy(newr, r.buf)
@@ -117,19 +117,19 @@ func (r *RuneBuffer) Runes() []rune {
 	return newr
 }
 
-func (r *RuneBuffer) Pos() int {
+func (r *runeBuffer) Pos() int {
 	r.Lock()
 	defer r.Unlock()
 	return r.idx
 }
 
-func (r *RuneBuffer) Len() int {
+func (r *runeBuffer) Len() int {
 	r.Lock()
 	defer r.Unlock()
 	return len(r.buf)
 }
 
-func (r *RuneBuffer) MoveToLineStart() {
+func (r *runeBuffer) MoveToLineStart() {
 	r.Refresh(func() {
 		if r.idx == 0 {
 			return
@@ -138,7 +138,7 @@ func (r *RuneBuffer) MoveToLineStart() {
 	})
 }
 
-func (r *RuneBuffer) MoveBackward() {
+func (r *runeBuffer) MoveBackward() {
 	r.Refresh(func() {
 		if r.idx == 0 {
 			return
@@ -147,15 +147,15 @@ func (r *RuneBuffer) MoveBackward() {
 	})
 }
 
-func (r *RuneBuffer) WriteString(s string) {
+func (r *runeBuffer) WriteString(s string) {
 	r.WriteRunes([]rune(s))
 }
 
-func (r *RuneBuffer) WriteRune(s rune) {
+func (r *runeBuffer) WriteRune(s rune) {
 	r.WriteRunes([]rune{s})
 }
 
-func (r *RuneBuffer) WriteRunes(s []rune) {
+func (r *runeBuffer) WriteRunes(s []rune) {
 	r.Lock()
 	defer r.Unlock()
 
@@ -177,7 +177,7 @@ func (r *RuneBuffer) WriteRunes(s []rune) {
 	}
 }
 
-func (r *RuneBuffer) MoveForward() {
+func (r *runeBuffer) MoveForward() {
 	r.Refresh(func() {
 		if r.idx == len(r.buf) {
 			return
@@ -186,19 +186,19 @@ func (r *RuneBuffer) MoveForward() {
 	})
 }
 
-func (r *RuneBuffer) IsCursorInEnd() bool {
+func (r *runeBuffer) IsCursorInEnd() bool {
 	r.Lock()
 	defer r.Unlock()
 	return r.idx == len(r.buf)
 }
 
-func (r *RuneBuffer) Replace(ch rune) {
+func (r *runeBuffer) Replace(ch rune) {
 	r.Refresh(func() {
 		r.buf[r.idx] = ch
 	})
 }
 
-func (r *RuneBuffer) Erase() {
+func (r *runeBuffer) Erase() {
 	r.Refresh(func() {
 		r.idx = 0
 		r.pushKill(r.buf[:])
@@ -206,7 +206,7 @@ func (r *RuneBuffer) Erase() {
 	})
 }
 
-func (r *RuneBuffer) Delete() (success bool) {
+func (r *runeBuffer) Delete() (success bool) {
 	r.Refresh(func() {
 		if r.idx == len(r.buf) {
 			return
@@ -218,7 +218,7 @@ func (r *RuneBuffer) Delete() (success bool) {
 	return
 }
 
-func (r *RuneBuffer) DeleteWord() {
+func (r *runeBuffer) DeleteWord() {
 	if r.idx == len(r.buf) {
 		return
 	}
@@ -238,7 +238,7 @@ func (r *RuneBuffer) DeleteWord() {
 	r.Kill()
 }
 
-func (r *RuneBuffer) MoveToPrevWord() (success bool) {
+func (r *runeBuffer) MoveToPrevWord() (success bool) {
 	r.Refresh(func() {
 		if r.idx == 0 {
 			return
@@ -257,7 +257,7 @@ func (r *RuneBuffer) MoveToPrevWord() (success bool) {
 	return
 }
 
-func (r *RuneBuffer) KillFront() {
+func (r *runeBuffer) KillFront() {
 	r.Refresh(func() {
 		if r.idx == 0 {
 			return
@@ -271,14 +271,14 @@ func (r *RuneBuffer) KillFront() {
 	})
 }
 
-func (r *RuneBuffer) Kill() {
+func (r *runeBuffer) Kill() {
 	r.Refresh(func() {
 		r.pushKill(r.buf[r.idx:])
 		r.buf = r.buf[:r.idx]
 	})
 }
 
-func (r *RuneBuffer) Transpose() {
+func (r *runeBuffer) Transpose() {
 	r.Refresh(func() {
 		if len(r.buf) == 1 {
 			r.idx++
@@ -298,7 +298,7 @@ func (r *RuneBuffer) Transpose() {
 	})
 }
 
-func (r *RuneBuffer) MoveToNextWord() {
+func (r *runeBuffer) MoveToNextWord() {
 	r.Refresh(func() {
 		for i := r.idx + 1; i < len(r.buf); i++ {
 			if !runes.IsWordBreak(r.buf[i]) && runes.IsWordBreak(r.buf[i-1]) {
@@ -311,7 +311,7 @@ func (r *RuneBuffer) MoveToNextWord() {
 	})
 }
 
-func (r *RuneBuffer) MoveToEndWord() {
+func (r *runeBuffer) MoveToEndWord() {
 	r.Refresh(func() {
 		// already at the end, so do nothing
 		if r.idx == len(r.buf) {
@@ -333,7 +333,7 @@ func (r *RuneBuffer) MoveToEndWord() {
 	})
 }
 
-func (r *RuneBuffer) BackEscapeWord() {
+func (r *runeBuffer) BackEscapeWord() {
 	r.Refresh(func() {
 		if r.idx == 0 {
 			return
@@ -352,7 +352,7 @@ func (r *RuneBuffer) BackEscapeWord() {
 	})
 }
 
-func (r *RuneBuffer) Yank() {
+func (r *runeBuffer) Yank() {
 	if len(r.lastKill) == 0 {
 		return
 	}
@@ -366,7 +366,7 @@ func (r *RuneBuffer) Yank() {
 	})
 }
 
-func (r *RuneBuffer) Backspace() {
+func (r *runeBuffer) Backspace() {
 	r.Refresh(func() {
 		if r.idx == 0 {
 			return
@@ -377,7 +377,7 @@ func (r *RuneBuffer) Backspace() {
 	})
 }
 
-func (r *RuneBuffer) MoveToLineEnd() {
+func (r *runeBuffer) MoveToLineEnd() {
 	r.Lock()
 	defer r.Unlock()
 	if r.idx == len(r.buf) {
@@ -389,12 +389,12 @@ func (r *RuneBuffer) MoveToLineEnd() {
 }
 
 // LineCount returns number of lines the buffer takes as it appears in the terminal.
-func (r *RuneBuffer) LineCount() int {
+func (r *runeBuffer) LineCount() int {
 	sp := r.getSplitByLine(r.buf, 1)
 	return len(sp)
 }
 
-func (r *RuneBuffer) MoveTo(ch rune, prevChar, reverse bool) (success bool) {
+func (r *runeBuffer) MoveTo(ch rune, prevChar, reverse bool) (success bool) {
 	r.Refresh(func() {
 		if reverse {
 			for i := r.idx - 1; i >= 0; i-- {
@@ -423,7 +423,7 @@ func (r *RuneBuffer) MoveTo(ch rune, prevChar, reverse bool) (success bool) {
 	return
 }
 
-func (r *RuneBuffer) isInLineEdge() bool {
+func (r *runeBuffer) isInLineEdge() bool {
 	if platform.IsWindows {
 		return false
 	}
@@ -431,7 +431,7 @@ func (r *RuneBuffer) isInLineEdge() bool {
 	return len(sp[len(sp)-1]) == 0  // last line is 0 len
 }
 
-func (r *RuneBuffer) getSplitByLine(rs []rune, nextWidth int) [][]rune {
+func (r *runeBuffer) getSplitByLine(rs []rune, nextWidth int) [][]rune {
 	tWidth, _ := r.w.GetWidthHeight()
 	if r.cfg.EnableMask {
 		w := runes.Width(r.cfg.MaskRune)
@@ -442,13 +442,13 @@ func (r *RuneBuffer) getSplitByLine(rs []rune, nextWidth int) [][]rune {
 	}
 }
 
-func (r *RuneBuffer) IdxLine(width int) int {
+func (r *runeBuffer) IdxLine(width int) int {
 	r.Lock()
 	defer r.Unlock()
 	return r.idxLine(width)
 }
 
-func (r *RuneBuffer) idxLine(width int) int {
+func (r *runeBuffer) idxLine(width int) int {
 	if width == 0 {
 		return 0
 	}
@@ -460,18 +460,18 @@ func (r *RuneBuffer) idxLine(width int) int {
 	return len(sp) - 1
 }
 
-func (r *RuneBuffer) CursorLineCount() int {
+func (r *runeBuffer) CursorLineCount() int {
 	tWidth, _ := r.w.GetWidthHeight()
 	return r.LineCount() - r.IdxLine(tWidth)
 }
 
-func (r *RuneBuffer) Refresh(f func()) {
+func (r *runeBuffer) Refresh(f func()) {
 	r.Lock()
 	defer r.Unlock()
 	r.refresh(f)
 }
 
-func (r *RuneBuffer) refresh(f func()) {
+func (r *runeBuffer) refresh(f func()) {
 	if !r.interactive {
 		if f != nil {
 			f()
@@ -486,13 +486,13 @@ func (r *RuneBuffer) refresh(f func()) {
 	r.print()
 }
 
-func (r *RuneBuffer) SetOffset(position cursorPosition) {
+func (r *runeBuffer) SetOffset(position cursorPosition) {
 	r.Lock()
 	defer r.Unlock()
 	r.setOffset(position)
 }
 
-func (r *RuneBuffer) setOffset(cpos cursorPosition) {
+func (r *runeBuffer) setOffset(cpos cursorPosition) {
 	r.cpos = cpos
 	tWidth, _ := r.w.GetWidthHeight()
 	if cpos.col > 0 && cpos.col < tWidth {
@@ -506,7 +506,7 @@ func (r *RuneBuffer) setOffset(cpos cursorPosition) {
 // place of print() when clean() was avoided. As output is appended on
 // the end, the cursor also needs no extra adjustment.
 // NOTE: assumes len(s) >= 1 which should always be true for append.
-func (r *RuneBuffer) append(s []rune) {
+func (r *runeBuffer) append(s []rune) {
 	buf := bytes.NewBuffer(nil)
 	slen := len(s)
 	if r.cfg.EnableMask {
@@ -536,7 +536,7 @@ func (r *RuneBuffer) append(s []rune) {
 }
 
 // Print writes out the prompt and buffer contents at the current cursor position
-func (r *RuneBuffer) Print() {
+func (r *runeBuffer) Print() {
 	r.Lock()
 	defer r.Unlock()
 	if !r.interactive {
@@ -545,11 +545,11 @@ func (r *RuneBuffer) Print() {
 	r.print()
 }
 
-func (r *RuneBuffer) print() {
+func (r *runeBuffer) print() {
 	r.w.Write(r.output())
 }
 
-func (r *RuneBuffer) output() []byte {
+func (r *runeBuffer) output() []byte {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteString(string(r.prompt))
 	if r.cfg.EnableMask && len(r.buf) > 0 {
@@ -580,7 +580,7 @@ func (r *RuneBuffer) output() []byte {
 	return buf.Bytes()
 }
 
-func (r *RuneBuffer) getBackspaceSequence() []byte {
+func (r *runeBuffer) getBackspaceSequence() []byte {
 	bcnt := len(r.buf) - r.idx  // backwards count to index
 	sp := r.getSplitByLine(r.buf, 1)
 
@@ -618,21 +618,21 @@ func (r *RuneBuffer) getBackspaceSequence() []byte {
 	return buf.Bytes()
 }
 
-func (r *RuneBuffer) Reset() []rune {
+func (r *runeBuffer) Reset() []rune {
 	ret := runes.Copy(r.buf)
 	r.buf = r.buf[:0]
 	r.idx = 0
 	return ret
 }
 
-func (r *RuneBuffer) calWidth(m int) int {
+func (r *runeBuffer) calWidth(m int) int {
 	if m > 0 {
 		return runes.WidthAll(r.buf[r.idx : r.idx+m])
 	}
 	return runes.WidthAll(r.buf[r.idx+m : r.idx])
 }
 
-func (r *RuneBuffer) SetStyle(start, end int, style string) {
+func (r *runeBuffer) SetStyle(start, end int, style string) {
 	if end < start {
 		panic("end < start")
 	}
@@ -650,24 +650,24 @@ func (r *RuneBuffer) SetStyle(start, end int, style string) {
 	// TODO: move back
 }
 
-func (r *RuneBuffer) SetWithIdx(idx int, buf []rune) {
+func (r *runeBuffer) SetWithIdx(idx int, buf []rune) {
 	r.Refresh(func() {
 		r.buf = buf
 		r.idx = idx
 	})
 }
 
-func (r *RuneBuffer) Set(buf []rune) {
+func (r *runeBuffer) Set(buf []rune) {
 	r.SetWithIdx(len(buf), buf)
 }
 
-func (r *RuneBuffer) SetPrompt(prompt string) {
+func (r *runeBuffer) SetPrompt(prompt string) {
 	r.Lock()
 	r.prompt = []rune(prompt)
 	r.Unlock()
 }
 
-func (r *RuneBuffer) cleanOutput(w io.Writer, idxLine int) {
+func (r *runeBuffer) cleanOutput(w io.Writer, idxLine int) {
 	buf := bufio.NewWriter(w)
 
 	tWidth, _ := r.w.GetWidthHeight()
@@ -685,18 +685,18 @@ func (r *RuneBuffer) cleanOutput(w io.Writer, idxLine int) {
 	return
 }
 
-func (r *RuneBuffer) Clean() {
+func (r *runeBuffer) Clean() {
 	r.Lock()
 	r.clean()
 	r.Unlock()
 }
 
-func (r *RuneBuffer) clean() {
+func (r *runeBuffer) clean() {
 	tWidth, _ := r.w.GetWidthHeight()
 	r.cleanWithIdxLine(r.idxLine(tWidth))
 }
 
-func (r *RuneBuffer) cleanWithIdxLine(idxLine int) {
+func (r *runeBuffer) cleanWithIdxLine(idxLine int) {
 	if !r.interactive {
 		return
 	}

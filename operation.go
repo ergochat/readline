@@ -18,7 +18,7 @@ type operation struct {
 	m       sync.Mutex
 	cfg     *Config
 	t       *terminal
-	buf     *RuneBuffer
+	buf     *runeBuffer
 	w       io.Writer
 	wrapOut atomic.Pointer[wrapWriter]
 	wrapErr atomic.Pointer[wrapWriter]
@@ -82,7 +82,7 @@ func (o *operation) write(target io.Writer, b []byte) (int, error) {
 func newOperation(t *terminal, cfg *Config) *operation {
 	op := &operation{
 		t:       t,
-		buf:     NewRuneBuffer(t, cfg.Prompt, cfg),
+		buf:     newRuneBuffer(t, cfg.Prompt, cfg),
 	}
 	op.w = op.buf.w
 	op.SetConfig(cfg)

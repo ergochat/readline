@@ -22,7 +22,7 @@ type opSearch struct {
 	dir       int
 	source    *list.Element
 	w         *terminal
-	buf       *RuneBuffer
+	buf       *runeBuffer
 	data      []rune
 	history   *opHistory
 	cfg       *Config
@@ -30,7 +30,7 @@ type opSearch struct {
 	markEnd   int
 }
 
-func newOpSearch(w *terminal, buf *RuneBuffer, history *opHistory, cfg *Config) *opSearch {
+func newOpSearch(w *terminal, buf *runeBuffer, history *opHistory, cfg *Config) *opSearch {
 	return &opSearch{
 		w:       w,
 		buf:     buf,
