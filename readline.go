@@ -12,7 +12,7 @@ import (
 
 type Instance struct {
 	terminal  *terminal
-	operation *Operation
+	operation *operation
 
 	closeOnce sync.Once
 	closeErr  error
@@ -167,7 +167,7 @@ func NewFromConfig(cfg *Config) (*Instance, error) {
 	if err != nil {
 		return nil, err
 	}
-	o := NewOperation(t, cfg)
+	o := newOperation(t, cfg)
 	return &Instance{
 		terminal:  t,
 		operation: o,
