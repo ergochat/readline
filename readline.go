@@ -11,7 +11,7 @@ import (
 )
 
 type Instance struct {
-	terminal  *Terminal
+	terminal  *terminal
 	operation *Operation
 
 	closeOnce sync.Once
@@ -163,7 +163,7 @@ func NewFromConfig(cfg *Config) (*Instance, error) {
 	if err := cfg.Init(); err != nil {
 		return nil, err
 	}
-	t, err := NewTerminal(cfg)
+	t, err := newTerminal(cfg)
 	if err != nil {
 		return nil, err
 	}

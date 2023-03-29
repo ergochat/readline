@@ -27,7 +27,7 @@ func (t *TabCompleter) Do([]rune, int) ([][]rune, int) {
 }
 
 type opCompleter struct {
-	w               *Terminal
+	w               *terminal
 	op              *Operation
 
 	inCompleteMode  bool
@@ -42,7 +42,7 @@ type opCompleter struct {
 	candidateColWidth  int           // width of candidate columns
 }
 
-func newOpCompleter(w *Terminal, op *Operation) *opCompleter {
+func newOpCompleter(w *terminal, op *Operation) *opCompleter {
 	return &opCompleter{
 		w:      w,
 		op:     op,

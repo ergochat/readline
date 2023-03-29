@@ -21,7 +21,7 @@ type RuneBuffer struct {
 	buf    []rune
 	idx    int
 	prompt []rune
-	w      *Terminal
+	w      *terminal
 
 	interactive bool
 	cfg         *Config
@@ -56,7 +56,7 @@ func (r *RuneBuffer) Restore() {
 	})
 }
 
-func NewRuneBuffer(w *Terminal, prompt string, cfg *Config) *RuneBuffer {
+func NewRuneBuffer(w *terminal, prompt string, cfg *Config) *RuneBuffer {
 	rb := &RuneBuffer{
 		w:           w,
 		interactive: cfg.useInteractive(),
