@@ -1,20 +1,3 @@
-// Readline is a pure go implementation for GNU-Readline kind library.
-//
-// example:
-// 	rl, err := readline.New("> ")
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	defer rl.Close()
-//
-// 	for {
-// 		line, err := rl.Readline()
-// 		if err != nil { // io.EOF
-// 			break
-// 		}
-// 		println(line)
-// 	}
-//
 package readline
 
 import (
@@ -28,8 +11,8 @@ import (
 )
 
 type Instance struct {
-	terminal  *Terminal
-	operation *Operation
+	terminal  *terminal
+	operation *operation
 
 	closeOnce sync.Once
 	closeErr  error
@@ -180,11 +163,11 @@ func NewFromConfig(cfg *Config) (*Instance, error) {
 	if err := cfg.Init(); err != nil {
 		return nil, err
 	}
-	t, err := NewTerminal(cfg)
+	t, err := newTerminal(cfg)
 	if err != nil {
 		return nil, err
 	}
-	o := NewOperation(t, cfg)
+	o := newOperation(t, cfg)
 	return &Instance{
 		terminal:  t,
 		operation: o,

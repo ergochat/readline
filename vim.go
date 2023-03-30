@@ -8,11 +8,11 @@ const (
 
 type opVim struct {
 	cfg     *Config
-	op      *Operation
+	op      *operation
 	vimMode int
 }
 
-func newVimMode(op *Operation) *opVim {
+func newVimMode(op *operation) *opVim {
 	ov := &opVim{
 		cfg: op.cfg,
 		op:  op,

@@ -1,11 +1,11 @@
 package readline
 
 type opPassword struct {
-	o         *Operation
+	o         *operation
 	backupCfg *Config
 }
 
-func newOpPassword(o *Operation) *opPassword {
+func newOpPassword(o *operation) *opPassword {
 	return &opPassword{o: o}
 }
 
