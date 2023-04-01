@@ -309,6 +309,12 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 				if !o.buf.Delete() {
 					o.t.Bell()
 				}
+			}
+		case CharEOT:
+			if o.buf.Len() > 0 || !o.IsNormalMode() {
+				if !o.buf.Delete() {
+					o.t.Bell()
+				}
 				break
 			}
 
