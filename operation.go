@@ -27,6 +27,7 @@ type operation struct {
 	search    *opSearch
 	completer *opCompleter
 	vim       *opVim
+	undo      *opUndo
 }
 
 func (o *operation) SetBuffer(what string) {
@@ -246,6 +247,8 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 			// no-op
 		case CharCtrlY:
 			o.buf.Yank()
+		case CharCtrl_:
+			o.undo.undo()
 		case CharEnter, CharCtrlJ:
 			if o.search.IsSearchMode() {
 				o.search.ExitSearchMode(false)
@@ -271,6 +274,7 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 			} else {
 				isUpdateHistory = false
 			}
+			o.undo.init()
 		case CharBackward:
 			o.buf.MoveBackward()
 		case CharForward:
@@ -279,6 +283,7 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 			buf := o.history.Prev()
 			if buf != nil {
 				o.buf.Set(buf)
+				o.undo.init()
 			} else {
 				o.t.Bell()
 			}
@@ -286,6 +291,7 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 			buf, ok := o.history.Next()
 			if ok {
 				o.buf.Set(buf)
+				o.undo.init()
 			} else {
 				o.t.Bell()
 			}
@@ -363,10 +369,12 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 		if !keepInSearchMode && o.search.IsSearchMode() {
 			o.search.ExitSearchMode(false)
 			o.buf.Refresh(nil)
+			o.undo.init()
 		} else if o.completer.IsInCompleteMode() {
 			if !keepInCompleteMode {
 				o.completer.ExitCompleteMode(false)
 				o.refresh()
+				o.undo.init()
 			} else {
 				o.buf.Refresh(nil)
 				o.completer.CompleteRefresh()
@@ -418,6 +426,9 @@ func (o *operation) Runes() ([]rune, error) {
 	// Prompt written safely, unlock until read completes and then
 	// lock again to unset.
 	o.m.Unlock()
+
+	o.undo = newOpUndo(o)
+	o.buf.OnChange = o.undo.add
 
 	defer func() {
 		o.m.Lock()
