@@ -304,7 +304,7 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 			} else {
 				o.t.Bell()
 			}
-		case CharDelete:
+		case MetaDeleteKey:
 			if o.buf.Len() > 0 || !o.IsNormalMode() {
 				if !o.buf.Delete() {
 					o.t.Bell()

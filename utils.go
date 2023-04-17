@@ -46,7 +46,7 @@ const (
 	MetaBackspace
 	MetaTranspose
 	MetaShiftTab
-	CharDelete
+	MetaDeleteKey
 )
 
 type rawModeHandler struct {
