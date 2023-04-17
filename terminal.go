@@ -114,7 +114,7 @@ type readResult struct {
 }
 
 func newTerminal(cfg *Config) (*terminal, error) {
-	if cfg.useInteractive() {
+	if cfg.isInteractive {
 		if ansiErr := ansi.EnableANSI(); ansiErr != nil {
 			return nil, fmt.Errorf("Could not enable ANSI escapes: %w", ansiErr)
 		}
@@ -124,7 +124,7 @@ func newTerminal(cfg *Config) (*terminal, error) {
 		outChan:  make(chan readResult),
 		stopChan: make(chan struct{}),
 	}
-	t.cfg.Store(cfg)
+	t.SetConfig(cfg)
 	// Get and cache the current terminal size.
 	t.OnSizeChange()
 
@@ -145,15 +145,15 @@ func (t *terminal) SleepToResume() {
 }
 
 func (t *terminal) EnterRawMode() (err error) {
-	return t.cfg.Load().FuncMakeRaw()
+	return t.GetConfig().FuncMakeRaw()
 }
 
 func (t *terminal) ExitRawMode() (err error) {
-	return t.cfg.Load().FuncExitRaw()
+	return t.GetConfig().FuncExitRaw()
 }
 
 func (t *terminal) Write(b []byte) (int, error) {
-	return t.cfg.Load().Stdout.Write(b)
+	return t.GetConfig().Stdout.Write(b)
 }
 
 // getOffset sends a DSR query to get the current offset, then blocks
@@ -275,7 +275,7 @@ func (t *terminal) ioloop() {
 	// ensure close if we get an error from stdio
 	defer t.Close()
 
-	buf := bufio.NewReader(t.cfg.Load().Stdin)
+	buf := bufio.NewReader(t.GetConfig().fillableStdin)
 
 	for {
 		select {
@@ -403,9 +403,13 @@ func (t *terminal) SetConfig(c *Config) error {
 	return nil
 }
 
+func (t *terminal) GetConfig() *Config {
+	return t.cfg.Load()
+}
+
 // OnSizeChange gets the current terminal size and caches it
 func (t *terminal) OnSizeChange() {
-	cfg := t.cfg.Load()
+	cfg := t.GetConfig()
 	width, height := cfg.FuncGetSize()
 	t.dimensions.Store(&termDimensions{
 		width:  width,

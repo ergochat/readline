@@ -16,20 +16,17 @@ var (
 
 type operation struct {
 	m       sync.Mutex
-	cfg     *Config
 	t       *terminal
 	buf     *runeBuffer
-	w       io.Writer
 	wrapOut atomic.Pointer[wrapWriter]
 	wrapErr atomic.Pointer[wrapWriter]
 
-	isPrompting bool       // true when prompt written and waiting for input
+	isPrompting bool // true when prompt written and waiting for input
 
-	history *opHistory
-	search  *opSearch
+	history   *opHistory
+	search    *opSearch
 	completer *opCompleter
-	password *opPassword
-	vim *opVim
+	vim       *opVim
 }
 
 func (o *operation) SetBuffer(what string) {
@@ -79,33 +76,21 @@ func (o *operation) write(target io.Writer, b []byte) (int, error) {
 	return n, err
 }
 
-func newOperation(t *terminal, cfg *Config) *operation {
+func newOperation(t *terminal) *operation {
+	cfg := t.GetConfig()
 	op := &operation{
-		t:       t,
-		buf:     newRuneBuffer(t, cfg.Prompt, cfg),
+		t:   t,
+		buf: newRuneBuffer(t),
 	}
-	op.w = op.buf.w
 	op.SetConfig(cfg)
 	op.vim = newVimMode(op)
 	op.completer = newOpCompleter(op.buf.w, op)
-	op.password = newOpPassword(op)
-	op.cfg.FuncOnWidthChanged(t.OnSizeChange)
+	cfg.FuncOnWidthChanged(t.OnSizeChange)
 	return op
 }
 
-func (o *operation) SetPrompt(s string) {
-	o.buf.SetPrompt(s)
-}
-
-func (o *operation) SetMaskRune(r rune) {
-	o.buf.SetMask(r)
-}
-
 func (o *operation) GetConfig() *Config {
-	o.m.Lock()
-	cfg := *o.cfg
-	o.m.Unlock()
-	return &cfg
+	return o.t.GetConfig()
 }
 
 func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
@@ -252,8 +237,8 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 				o.Refresh()
 			}
 		case CharCtrlL:
-			platform.ClearScreen(o.w)
-			o.buf.SetOffset(cursorPosition{1,1})
+			platform.ClearScreen(o.t)
+			o.buf.SetOffset(cursorPosition{1, 1})
 			o.Refresh()
 		case MetaBackspace, CharCtrlW:
 			o.buf.BackEscapeWord()
@@ -434,7 +419,7 @@ func (o *operation) Runes() ([]rune, error) {
 	defer func() {
 		o.m.Lock()
 		o.isPrompting = false
-		o.buf.SetOffset(cursorPosition{1,1})
+		o.buf.SetOffset(cursorPosition{1, 1})
 		o.m.Unlock()
 	}()
 
@@ -442,8 +427,7 @@ func (o *operation) Runes() ([]rune, error) {
 }
 
 func (o *operation) getAndSetOffset(deadline chan struct{}) {
-	// TODO(#7) cache the `interactive` status in Config itself
-	if !o.buf.interactive {
+	if !o.GetConfig().isInteractive {
 		return
 	}
 
@@ -462,14 +446,33 @@ func (o *operation) getAndSetOffset(deadline chan struct{}) {
 }
 
 func (o *operation) GenPasswordConfig() *Config {
-	return o.password.PasswordConfig()
+	baseConfig := o.GetConfig()
+	return &Config{
+		EnableMask:      true,
+		InterruptPrompt: "\n",
+		EOFPrompt:       "\n",
+		HistoryLimit:    -1,
+
+		Stdin:  baseConfig.Stdin,
+		Stdout: baseConfig.Stdout,
+		Stderr: baseConfig.Stderr,
+
+		FuncIsTerminal:      baseConfig.FuncIsTerminal,
+		FuncMakeRaw:         baseConfig.FuncMakeRaw,
+		FuncExitRaw:         baseConfig.FuncExitRaw,
+		FuncOnWidthChanged:  baseConfig.FuncOnWidthChanged,
+		ForceUseInteractive: baseConfig.ForceUseInteractive,
+	}
 }
 
 func (o *operation) PasswordWithConfig(cfg *Config) ([]byte, error) {
-	if err := o.password.EnterPasswordMode(cfg); err != nil {
+	backupCfg, err := o.SetConfig(cfg)
+	if err != nil {
 		return nil, err
 	}
-	defer o.password.ExitPasswordMode()
+	defer func() {
+		o.SetConfig(backupCfg)
+	}()
 	return o.Slice()
 }
 
@@ -480,7 +483,7 @@ func (o *operation) Password(prompt string) ([]byte, error) {
 }
 
 func (o *operation) SetTitle(t string) {
-	o.w.Write([]byte("\033[2;" + t + "\007"))
+	o.t.Write([]byte("\033[2;" + t + "\007"))
 }
 
 func (o *operation) Slice() ([]byte, error) {
@@ -495,14 +498,6 @@ func (o *operation) Close() {
 	o.history.Close()
 }
 
-func (o *operation) SetHistoryPath(path string) {
-	if o.history != nil {
-		o.history.Close()
-	}
-	o.cfg.HistoryFile = path
-	o.history = newOpHistory(o.cfg)
-}
-
 func (o *operation) IsNormalMode() bool {
 	return !o.completer.IsInCompleteMode() && !o.search.IsSearchMode()
 }
@@ -510,37 +505,28 @@ func (o *operation) IsNormalMode() bool {
 func (op *operation) SetConfig(cfg *Config) (*Config, error) {
 	op.m.Lock()
 	defer op.m.Unlock()
-	if op.cfg == cfg {
-		return op.cfg, nil
+	old := op.t.GetConfig()
+	if err := cfg.init(); err != nil {
+		return old, err
 	}
-	if err := cfg.Init(); err != nil {
-		return op.cfg, err
-	}
-	old := op.cfg
-	op.cfg = cfg
-	op.SetPrompt(cfg.Prompt)
-	op.SetMaskRune(cfg.MaskRune)
-	op.buf.SetConfig(cfg)
+
+	// install the config in its canonical location (inside terminal):
+	op.t.SetConfig(cfg)
 
 	op.wrapOut.Store(&wrapWriter{target: cfg.Stdout, o: op})
 	op.wrapErr.Store(&wrapWriter{target: cfg.Stderr, o: op})
 
-	if cfg.opHistory == nil {
-		op.SetHistoryPath(cfg.HistoryFile)
-		cfg.opHistory = op.history
-		cfg.opSearch = newOpSearch(op.buf.w, op.buf, op.history, cfg)
+	if op.history == nil {
+		op.history = newOpHistory(op)
 	}
-	op.history = cfg.opHistory
+	if op.search == nil {
+		op.search = newOpSearch(op.buf.w, op.buf, op.history)
+	}
 
-	// SetHistoryPath will close opHistory which already exists
-	// so if we use it next time, we need to reopen it by `InitHistory()`
-	op.history.Init()
-
-	if op.cfg.AutoComplete != nil && op.completer == nil {
+	if cfg.AutoComplete != nil && op.completer == nil {
 		op.completer = newOpCompleter(op.buf.w, op)
 	}
 
-	op.search = cfg.opSearch
 	return old, nil
 }
 

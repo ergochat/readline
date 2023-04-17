@@ -23,7 +23,7 @@ func (h *hisItem) Clean() {
 }
 
 type opHistory struct {
-	cfg        *Config
+	operation  *operation
 	history    *list.List
 	historyVer int64
 	current    *list.Element
@@ -32,13 +32,18 @@ type opHistory struct {
 	enable     bool
 }
 
-func newOpHistory(cfg *Config) (o *opHistory) {
+func newOpHistory(operation *operation) (o *opHistory) {
 	o = &opHistory{
-		cfg:     cfg,
-		history: list.New(),
-		enable:  true,
+		operation: operation,
+		history:   list.New(),
+		enable:    true,
 	}
+	o.initHistory()
 	return o
+}
+
+func (o *opHistory) isEnabled() bool {
+	return o.enable && o.operation.GetConfig().HistoryLimit > 0
 }
 
 func (o *opHistory) Reset() {
@@ -46,29 +51,18 @@ func (o *opHistory) Reset() {
 	o.current = nil
 }
 
-func (o *opHistory) IsHistoryClosed() bool {
-	o.fdLock.Lock()
-	defer o.fdLock.Unlock()
-	return o.fd.Fd() == ^(uintptr(0))
-}
-
-func (o *opHistory) Init() {
-	if o.IsHistoryClosed() {
-		o.initHistory()
-	}
-}
-
 func (o *opHistory) initHistory() {
-	if o.cfg.HistoryFile != "" {
-		o.historyUpdatePath(o.cfg.HistoryFile)
+	cfg := o.operation.GetConfig()
+	if cfg.HistoryFile != "" {
+		o.historyUpdatePath(cfg)
 	}
 }
 
 // only called by newOpHistory
-func (o *opHistory) historyUpdatePath(path string) {
+func (o *opHistory) historyUpdatePath(cfg *Config) {
 	o.fdLock.Lock()
 	defer o.fdLock.Unlock()
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
+	f, err := os.OpenFile(cfg.HistoryFile, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
 		return
 	}
@@ -88,7 +82,7 @@ func (o *opHistory) historyUpdatePath(path string) {
 		o.Push([]rune(line))
 		o.Compact()
 	}
-	if total > o.cfg.HistoryLimit {
+	if total > cfg.HistoryLimit {
 		o.rewriteLocked()
 	}
 	o.historyVer++
@@ -97,7 +91,8 @@ func (o *opHistory) historyUpdatePath(path string) {
 }
 
 func (o *opHistory) Compact() {
-	for o.history.Len() > o.cfg.HistoryLimit && o.history.Len() > 0 {
+	cfg := o.operation.GetConfig()
+	for o.history.Len() > cfg.HistoryLimit && o.history.Len() > 0 {
 		o.history.Remove(o.history.Front())
 	}
 }
@@ -109,11 +104,12 @@ func (o *opHistory) Rewrite() {
 }
 
 func (o *opHistory) rewriteLocked() {
-	if o.cfg.HistoryFile == "" {
+	cfg := o.operation.GetConfig()
+	if cfg.HistoryFile == "" {
 		return
 	}
 
-	tmpFile := o.cfg.HistoryFile + ".tmp"
+	tmpFile := cfg.HistoryFile + ".tmp"
 	fd, err := os.OpenFile(tmpFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|os.O_APPEND, 0666)
 	if err != nil {
 		return
@@ -126,7 +122,7 @@ func (o *opHistory) rewriteLocked() {
 	buf.Flush()
 
 	// replace history file
-	if err = os.Rename(tmpFile, o.cfg.HistoryFile); err != nil {
+	if err = os.Rename(tmpFile, cfg.HistoryFile); err != nil {
 		fd.Close()
 		return
 	}
@@ -157,7 +153,7 @@ func (o *opHistory) FindBck(isNewSearch bool, rs []rune, start int) (int, *list.
 				item = item[:start]
 			}
 		}
-		idx := runes.IndexAllBckEx(item, rs, o.cfg.HistorySearchFold)
+		idx := runes.IndexAllBckEx(item, rs, o.operation.GetConfig().HistorySearchFold)
 		if idx < 0 {
 			continue
 		}
@@ -182,7 +178,7 @@ func (o *opHistory) FindFwd(isNewSearch bool, rs []rune, start int) (int, *list.
 				continue
 			}
 		}
-		idx := runes.IndexAllEx(item, rs, o.cfg.HistorySearchFold)
+		idx := runes.IndexAllEx(item, rs, o.operation.GetConfig().HistorySearchFold)
 		if idx < 0 {
 			continue
 		}
@@ -246,9 +242,7 @@ func (o *opHistory) debug() {
 
 // save history
 func (o *opHistory) New(current []rune) (err error) {
-
-	// history deactivated
-	if !o.enable {
+	if !o.isEnabled() {
 		return nil
 	}
 
@@ -301,6 +295,10 @@ func (o *opHistory) Revert() {
 }
 
 func (o *opHistory) Update(s []rune, commit bool) (err error) {
+	if !o.isEnabled() {
+		return nil
+	}
+
 	o.fdLock.Lock()
 	defer o.fdLock.Unlock()
 	s = runes.Copy(s)
