@@ -12,21 +12,10 @@ import (
 	"github.com/ergochat/readline/internal/runes"
 )
 
-type runeBufferBck struct {
-	buf []rune
-	idx int
-}
-
 type runeBuffer struct {
 	buf    []rune
 	idx    int
-	prompt []rune
 	w      *terminal
-
-	interactive bool
-	cfg         *Config
-
-	bck *runeBufferBck
 
 	cpos cursorPosition
 	ppos   int             // prompt start position (0 == column 1)
@@ -40,43 +29,11 @@ func (r *runeBuffer) pushKill(text []rune) {
 	r.lastKill = append([]rune{}, text...)
 }
 
-func (r *runeBuffer) Backup() {
-	r.Lock()
-	r.bck = &runeBufferBck{r.buf, r.idx}
-	r.Unlock()
-}
-
-func (r *runeBuffer) Restore() {
-	r.Refresh(func() {
-		if r.bck == nil {
-			return
-		}
-		r.buf = r.bck.buf
-		r.idx = r.bck.idx
-	})
-}
-
-func newRuneBuffer(w *terminal, prompt string, cfg *Config) *runeBuffer {
+func newRuneBuffer(w *terminal) *runeBuffer {
 	rb := &runeBuffer{
 		w:           w,
-		interactive: cfg.useInteractive(),
-		cfg:         cfg,
 	}
-	rb.SetPrompt(prompt)
 	return rb
-}
-
-func (r *runeBuffer) SetConfig(cfg *Config) {
-	r.Lock()
-	r.cfg = cfg
-	r.interactive = cfg.useInteractive()
-	r.Unlock()
-}
-
-func (r *runeBuffer) SetMask(m rune) {
-	r.Lock()
-	r.cfg.MaskRune = m
-	r.Unlock()
 }
 
 func (r *runeBuffer) CurrentWidth(x int) int {
@@ -92,7 +49,7 @@ func (r *runeBuffer) PromptLen() int {
 }
 
 func (r *runeBuffer) promptLen() int {
-	return runes.WidthAll(runes.ColorFilter(r.prompt))
+	return runes.WidthAll(runes.ColorFilter([]rune(r.prompt())))
 }
 
 func (r *runeBuffer) RuneSlice(i int) []rune {
@@ -155,6 +112,18 @@ func (r *runeBuffer) WriteRune(s rune) {
 	r.WriteRunes([]rune{s})
 }
 
+func (r *runeBuffer) getConfig() *Config {
+	return r.w.GetConfig()
+}
+
+func (r *runeBuffer) isInteractive() bool {
+	return r.getConfig().isInteractive
+}
+
+func (r *runeBuffer) prompt() string {
+	return r.getConfig().Prompt
+}
+
 func (r *runeBuffer) WriteRunes(s []rune) {
 	r.Lock()
 	defer r.Unlock()
@@ -164,7 +133,7 @@ func (r *runeBuffer) WriteRunes(s []rune) {
 		// append instead of refesh to save redrawing.
 		r.buf = append(r.buf, s...)
 		r.idx += len(s)
-		if r.interactive {
+		if r.isInteractive() {
 			r.append(s)
 		}
 	} else {
@@ -433,12 +402,13 @@ func (r *runeBuffer) isInLineEdge() bool {
 
 func (r *runeBuffer) getSplitByLine(rs []rune, nextWidth int) [][]rune {
 	tWidth, _ := r.w.GetWidthHeight()
-	if r.cfg.EnableMask {
-		w := runes.Width(r.cfg.MaskRune)
-		masked := []rune(strings.Repeat(string(r.cfg.MaskRune), len(rs)))
-		return runes.SplitByLine(runes.ColorFilter(r.prompt), masked, r.ppos, tWidth, w)
+	cfg := r.getConfig()
+	if cfg.EnableMask {
+		w := runes.Width(cfg.MaskRune)
+		masked := []rune(strings.Repeat(string(cfg.MaskRune), len(rs)))
+		return runes.SplitByLine(runes.ColorFilter([]rune(r.prompt())), masked, r.ppos, tWidth, w)
 	} else {
-		return runes.SplitByLine(runes.ColorFilter(r.prompt), rs, r.ppos, tWidth, nextWidth)
+		return runes.SplitByLine(runes.ColorFilter([]rune(r.prompt())), rs, r.ppos, tWidth, nextWidth)
 	}
 }
 
@@ -472,7 +442,7 @@ func (r *runeBuffer) Refresh(f func()) {
 }
 
 func (r *runeBuffer) refresh(f func()) {
-	if !r.interactive {
+	if !r.isInteractive() {
 		if f != nil {
 			f()
 		}
@@ -509,19 +479,20 @@ func (r *runeBuffer) setOffset(cpos cursorPosition) {
 func (r *runeBuffer) append(s []rune) {
 	buf := bytes.NewBuffer(nil)
 	slen := len(s)
-	if r.cfg.EnableMask {
-		if slen > 1 && r.cfg.MaskRune != 0 {
+	cfg := r.getConfig()
+	if cfg.EnableMask {
+		if slen > 1 && cfg.MaskRune != 0 {
 			// write a mask character for all runes except the last rune
-			buf.WriteString(strings.Repeat(string(r.cfg.MaskRune), slen-1))
+			buf.WriteString(strings.Repeat(string(cfg.MaskRune), slen-1))
 		}
 		// for the last rune, write \n or mask it otherwise.
 		if s[slen-1] == '\n' {
 			buf.WriteRune('\n')
-		} else if r.cfg.MaskRune != 0 {
-			buf.WriteRune(r.cfg.MaskRune)
+		} else if cfg.MaskRune != 0 {
+			buf.WriteRune(cfg.MaskRune)
 		}
 	} else {
-		for _, e := range r.cfg.Painter.Paint(s, slen) {
+		for _, e := range cfg.Painter.Paint(s, slen) {
 			if e == '\t' {
 				buf.WriteString(strings.Repeat(" ", runes.TabWidth))
 			} else {
@@ -539,7 +510,7 @@ func (r *runeBuffer) append(s []rune) {
 func (r *runeBuffer) Print() {
 	r.Lock()
 	defer r.Unlock()
-	if !r.interactive {
+	if !r.isInteractive() {
 		return
 	}
 	r.print()
@@ -551,18 +522,19 @@ func (r *runeBuffer) print() {
 
 func (r *runeBuffer) output() []byte {
 	buf := bytes.NewBuffer(nil)
-	buf.WriteString(string(r.prompt))
-	if r.cfg.EnableMask && len(r.buf) > 0 {
-		if r.cfg.MaskRune != 0 {
-			buf.WriteString(strings.Repeat(string(r.cfg.MaskRune), len(r.buf)-1))
+	buf.WriteString(r.prompt())
+	cfg := r.getConfig()
+	if cfg.EnableMask && len(r.buf) > 0 {
+		if cfg.MaskRune != 0 {
+			buf.WriteString(strings.Repeat(string(cfg.MaskRune), len(r.buf)-1))
 		}
 		if r.buf[len(r.buf)-1] == '\n' {
 			buf.WriteRune('\n')
-		} else if r.cfg.MaskRune != 0 {
-			buf.WriteRune(r.cfg.MaskRune)
+		} else if cfg.MaskRune != 0 {
+			buf.WriteRune(cfg.MaskRune)
 		}
 	} else {
-		for _, e := range r.cfg.Painter.Paint(r.buf, r.idx) {
+		for _, e := range cfg.Painter.Paint(r.buf, r.idx) {
 			if e == '\t' {
 				buf.WriteString(strings.Repeat(" ", runes.TabWidth))
 			} else {
@@ -661,12 +633,6 @@ func (r *runeBuffer) Set(buf []rune) {
 	r.SetWithIdx(len(buf), buf)
 }
 
-func (r *runeBuffer) SetPrompt(prompt string) {
-	r.Lock()
-	r.prompt = []rune(prompt)
-	r.Unlock()
-}
-
 func (r *runeBuffer) cleanOutput(w io.Writer, idxLine int) {
 	buf := bufio.NewWriter(w)
 
@@ -697,7 +663,7 @@ func (r *runeBuffer) clean() {
 }
 
 func (r *runeBuffer) cleanWithIdxLine(idxLine int) {
-	if !r.interactive {
+	if !r.isInteractive() {
 		return
 	}
 	r.cleanOutput(r.w, idxLine)

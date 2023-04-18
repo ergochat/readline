@@ -7,34 +7,20 @@ const (
 )
 
 type opVim struct {
-	cfg     *Config
 	op      *operation
 	vimMode int
 }
 
 func newVimMode(op *operation) *opVim {
 	ov := &opVim{
-		cfg: op.cfg,
-		op:  op,
+		op:      op,
+		vimMode: VIM_INSERT,
 	}
-	ov.SetVimMode(ov.cfg.VimMode)
 	return ov
 }
 
-func (o *opVim) SetVimMode(on bool) {
-	if o.cfg.VimMode && !on { // turn off
-		o.ExitVimMode()
-	}
-	o.cfg.VimMode = on
-	o.vimMode = VIM_INSERT
-}
-
-func (o *opVim) ExitVimMode() {
-	o.vimMode = VIM_INSERT
-}
-
 func (o *opVim) IsEnableVimMode() bool {
-	return o.cfg.VimMode
+	return o.op.GetConfig().VimMode
 }
 
 func (o *opVim) handleVimNormalMovement(r rune, readNext func() rune) (t rune, handled bool) {
@@ -133,7 +119,7 @@ func (o *opVim) handleVimNormalEnterInsert(r rune, readNext func() rune) (t rune
 func (o *opVim) HandleVimNormal(r rune, readNext func() rune) (t rune) {
 	switch r {
 	case CharEnter, CharInterrupt:
-		o.ExitVimMode()
+		o.vimMode = VIM_INSERT // ???
 		return r
 	}
 

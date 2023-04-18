@@ -73,20 +73,11 @@ type Config struct {
 
 	// private fields
 	inited    bool
-	opHistory *opHistory
-	opSearch  *opSearch
-	// write interface to prefill stdin with data
-	stdinWriter io.Writer
+	fillableStdin io.ReadWriter
+	isInteractive bool
 }
 
-func (c *Config) useInteractive() bool {
-	if c.ForceUseInteractive {
-		return true
-	}
-	return c.FuncIsTerminal()
-}
-
-func (c *Config) Init() error {
+func (c *Config) init() error {
 	if c.inited {
 		return nil
 	}
@@ -94,9 +85,7 @@ func (c *Config) Init() error {
 	if c.Stdin == nil {
 		c.Stdin = os.Stdin
 	}
-
-	fillableStdin := newFillableStdin(c.Stdin)
-	c.Stdin, c.stdinWriter = fillableStdin, fillableStdin
+	c.fillableStdin = newFillableStdin(c.Stdin)
 
 	if c.Stdout == nil {
 		c.Stdout = os.Stdout
@@ -145,13 +134,9 @@ func (c *Config) Init() error {
 		c.Painter = &defaultPainter{}
 	}
 
-	return nil
-}
+	c.isInteractive = c.ForceUseInteractive || c.FuncIsTerminal()
 
-func (c Config) Clone() *Config {
-	c.opHistory = nil
-	c.opSearch = nil
-	return &c
+	return nil
 }
 
 func (c *Config) SetListener(f func(line []rune, pos int, key rune) (newLine []rune, newPos int, ok bool)) {
@@ -160,14 +145,14 @@ func (c *Config) SetListener(f func(line []rune, pos int, key rune) (newLine []r
 
 // NewFromConfig creates a readline instance from the specified configuration.
 func NewFromConfig(cfg *Config) (*Instance, error) {
-	if err := cfg.Init(); err != nil {
+	if err := cfg.init(); err != nil {
 		return nil, err
 	}
 	t, err := newTerminal(cfg)
 	if err != nil {
 		return nil, err
 	}
-	o := newOperation(t, cfg)
+	o := newOperation(t)
 	return &Instance{
 		terminal:  t,
 		operation: o,
@@ -187,16 +172,15 @@ func (i *Instance) ResetHistory() {
 }
 
 func (i *Instance) SetPrompt(s string) {
-	i.operation.SetPrompt(s)
+	cfg := i.GetConfig()
+	cfg.Prompt = s
+	i.SetConfig(cfg)
 }
 
 func (i *Instance) SetMaskRune(r rune) {
-	i.operation.SetMaskRune(r)
-}
-
-// change history persistence in runtime
-func (i *Instance) SetHistoryPath(p string) {
-	i.operation.SetHistoryPath(p)
+	cfg := i.GetConfig()
+	cfg.MaskRune = r
+	i.SetConfig(cfg)
 }
 
 // readline will refresh automatic when write through Stdout()
@@ -211,7 +195,9 @@ func (i *Instance) Stderr() io.Writer {
 
 // switch VimMode in runtime
 func (i *Instance) SetVimMode(on bool) {
-	i.operation.vim.SetVimMode(on)
+	cfg := i.GetConfig()
+	cfg.VimMode = on
+	i.SetConfig(cfg)
 }
 
 func (i *Instance) IsVimMode() bool {
@@ -284,32 +270,36 @@ func (i *Instance) Write(b []byte) (int, error) {
 	return i.Stdout().Write(b)
 }
 
-// WriteStdin prefills the next Stdin fetch. On the next call to Readline(),
+// FillStdin prefills the next Stdin fetch. On the next call to Readline(),
 // this data will be written before the user input, and the user will be able
 // to edit it.
 // For example:
 //  i := readline.New()
-//  i.WriteStdin([]byte("test"))
+//  i.FillStdin([]byte("test"))
 //  _, _= i.Readline()
 //
 // yields
 //
 // > test[cursor]
+func (i *Instance) FillStdin(val []byte) (int, error) {
+	return i.operation.GetConfig().fillableStdin.Write(val)
+}
+
 func (i *Instance) WriteStdin(val []byte) (int, error) {
-	return i.getConfig().stdinWriter.Write(val)
+	return i.FillStdin(val)
+}
+
+// GetConfig returns a copy of the current config.
+func (i *Instance) GetConfig() *Config {
+	cfg := i.operation.GetConfig()
+	result := new(Config)
+	*result = *cfg
+	return result
 }
 
 func (i *Instance) SetConfig(cfg *Config) error {
-	if err := cfg.Init(); err != nil {
-		return err
-	}
-	i.operation.SetConfig(cfg)
-	i.terminal.SetConfig(cfg)
-	return nil
-}
-
-func (i *Instance) getConfig() *Config {
-	return i.terminal.cfg.Load()
+	_, err := i.operation.SetConfig(cfg)
+	return err
 }
 
 func (i *Instance) Refresh() {

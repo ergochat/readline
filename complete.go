@@ -98,7 +98,7 @@ func (o *opCompleter) OnComplete() (ringBell bool) {
 		return true
 	}
 
-	newLines, offset := o.op.cfg.AutoComplete.Do(rs, buf.idx)
+	newLines, offset := o.op.GetConfig().AutoComplete.Do(rs, buf.idx)
 	if len(newLines) == 0 || (len(newLines) == 1 && len(newLines[0]) == 0) {
 		o.ExitCompleteMode(false)
 		return false // will ring bell on initial tab press
