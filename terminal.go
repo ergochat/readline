@@ -275,7 +275,7 @@ func (t *terminal) ioloop() {
 	// ensure close if we get an error from stdio
 	defer t.Close()
 
-	buf := bufio.NewReader(t.GetConfig().fillableStdin)
+	buf := bufio.NewReader(t.GetConfig().Stdin)
 
 	for {
 		select {
