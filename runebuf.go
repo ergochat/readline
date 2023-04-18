@@ -13,12 +13,12 @@ import (
 )
 
 type runeBuffer struct {
-	buf    []rune
-	idx    int
-	w      *terminal
+	buf []rune
+	idx int
+	w   *terminal
 
 	cpos cursorPosition
-	ppos   int             // prompt start position (0 == column 1)
+	ppos int // prompt start position (0 == column 1)
 
 	lastKill []rune
 
@@ -31,7 +31,7 @@ func (r *runeBuffer) pushKill(text []rune) {
 
 func newRuneBuffer(w *terminal) *runeBuffer {
 	rb := &runeBuffer{
-		w:           w,
+		w: w,
 	}
 	return rb
 }
@@ -397,7 +397,7 @@ func (r *runeBuffer) isInLineEdge() bool {
 		return false
 	}
 	sp := r.getSplitByLine(r.buf, 1)
-	return len(sp[len(sp)-1]) == 0  // last line is 0 len
+	return len(sp[len(sp)-1]) == 0 // last line is 0 len
 }
 
 func (r *runeBuffer) getSplitByLine(rs []rune, nextWidth int) [][]rune {
@@ -466,7 +466,7 @@ func (r *runeBuffer) setOffset(cpos cursorPosition) {
 	r.cpos = cpos
 	tWidth, _ := r.w.GetWidthHeight()
 	if cpos.col > 0 && cpos.col < tWidth {
-		r.ppos = cpos.col - 1  // c should be 1..tWidth
+		r.ppos = cpos.col - 1 // c should be 1..tWidth
 	} else {
 		r.ppos = 0
 	}
@@ -553,7 +553,7 @@ func (r *runeBuffer) output() []byte {
 }
 
 func (r *runeBuffer) getBackspaceSequence() []byte {
-	bcnt := len(r.buf) - r.idx  // backwards count to index
+	bcnt := len(r.buf) - r.idx // backwards count to index
 	sp := r.getSplitByLine(r.buf, 1)
 
 	// Calculate how many lines up to the index line
@@ -644,8 +644,8 @@ func (r *runeBuffer) cleanOutput(w io.Writer, idxLine int) {
 		if idxLine > 0 {
 			fmt.Fprintf(buf, "\033[%dA", idxLine) // move cursor up by idxLine
 		}
-		fmt.Fprintf(buf, "\033[%dG", r.ppos + 1) // move cursor back to initial ppos position
-		buf.Write([]byte("\033[J"))  // clear from cursor to end of screen
+		fmt.Fprintf(buf, "\033[%dG", r.ppos+1) // move cursor back to initial ppos position
+		buf.Write([]byte("\033[J"))            // clear from cursor to end of screen
 	}
 	buf.Flush()
 	return
