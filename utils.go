@@ -14,7 +14,7 @@ const (
 	CharLineStart = 1
 	CharBackward  = 2
 	CharInterrupt = 3
-	CharDelete    = 4
+	CharEOT       = 4
 	CharLineEnd   = 5
 	CharForward   = 6
 	CharBell      = 7
@@ -46,6 +46,7 @@ const (
 	MetaBackspace
 	MetaTranspose
 	MetaShiftTab
+	MetaDeleteKey
 )
 
 type rawModeHandler struct {

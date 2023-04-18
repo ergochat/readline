@@ -289,15 +289,18 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 			} else {
 				o.t.Bell()
 			}
-		case CharDelete:
+		case MetaDeleteKey, CharEOT:
+			// on Delete key or Ctrl-D, attempt to delete a character:
 			if o.buf.Len() > 0 || !o.IsNormalMode() {
 				if !o.buf.Delete() {
 					o.t.Bell()
 				}
 				break
 			}
-
-			// treat as EOF
+			if r != CharEOT {
+				break
+			}
+			// Ctrl-D on an empty buffer: treated as EOF
 			if !o.GetConfig().UniqueEditLine {
 				o.buf.WriteString(o.GetConfig().EOFPrompt + "\n")
 			}
