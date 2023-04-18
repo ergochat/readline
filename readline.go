@@ -73,7 +73,6 @@ type Config struct {
 
 	// private fields
 	inited        bool
-	fillableStdin io.ReadWriter
 	isInteractive bool
 }
 
@@ -85,7 +84,6 @@ func (c *Config) init() error {
 	if c.Stdin == nil {
 		c.Stdin = os.Stdin
 	}
-	c.fillableStdin = newFillableStdin(c.Stdin)
 
 	if c.Stdout == nil {
 		c.Stdout = os.Stdout
@@ -222,8 +220,15 @@ func (i *Instance) Readline() (string, error) {
 	return i.operation.String()
 }
 
+// SetDefault prefills a default value for the next call to Readline()
+// or related methods. The value will appear after the prompt for the user
+// to edit, with the cursor at the end of the line.
+func (i *Instance) SetDefault(defaultValue string) {
+	i.operation.SetBuffer(defaultValue)
+}
+
 func (i *Instance) ReadlineWithDefault(what string) (string, error) {
-	i.operation.SetBuffer(what)
+	i.SetDefault(what)
 	return i.operation.String()
 }
 
@@ -268,26 +273,6 @@ func (i *Instance) Clean() {
 
 func (i *Instance) Write(b []byte) (int, error) {
 	return i.Stdout().Write(b)
-}
-
-// FillStdin prefills the next Stdin fetch. On the next call to Readline(),
-// this data will be written before the user input, and the user will be able
-// to edit it.
-// For example:
-//
-//	i := readline.New()
-//	i.FillStdin([]byte("test"))
-//	_, _= i.Readline()
-//
-// yields
-//
-// > test[cursor]
-func (i *Instance) FillStdin(val []byte) (int, error) {
-	return i.operation.GetConfig().fillableStdin.Write(val)
-}
-
-func (i *Instance) WriteStdin(val []byte) (int, error) {
-	return i.FillStdin(val)
 }
 
 // GetConfig returns a copy of the current config.

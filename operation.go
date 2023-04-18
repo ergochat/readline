@@ -30,7 +30,7 @@ type operation struct {
 }
 
 func (o *operation) SetBuffer(what string) {
-	o.buf.Set([]rune(what))
+	o.buf.SetNoRefresh([]rune(what))
 }
 
 type wrapWriter struct {

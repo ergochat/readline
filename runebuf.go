@@ -633,6 +633,11 @@ func (r *runeBuffer) Set(buf []rune) {
 	r.SetWithIdx(len(buf), buf)
 }
 
+func (r *runeBuffer) SetNoRefresh(buf []rune) {
+	r.buf = buf
+	r.idx = len(buf)
+}
+
 func (r *runeBuffer) cleanOutput(w io.Writer, idxLine int) {
 	buf := bufio.NewWriter(w)
 
