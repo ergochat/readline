@@ -2,9 +2,9 @@ package runes
 
 import (
 	"bytes"
+	"golang.org/x/text/width"
 	"unicode"
 	"unicode/utf8"
-	"golang.org/x/text/width"
 )
 
 var TabWidth = 4
@@ -249,15 +249,15 @@ func SplitByLine(prompt, rs []rune, offset, screenWidth, nextWidth int) [][]rune
 			ret = append(ret, prs[si:i+1])
 			si = i + 1
 			currentWidth = 0
-		} else if currentWidth + w > screenWidth {
+		} else if currentWidth+w > screenWidth {
 			ret = append(ret, prs[si:i])
 			si = i
 			currentWidth = 0
 		}
 		currentWidth += w
 	}
-	ret = append(ret, prs[si:len(prs)])
-	if currentWidth + nextWidth > screenWidth {
+	ret = append(ret, prs[si:])
+	if currentWidth+nextWidth > screenWidth {
 		ret = append(ret, []rune{})
 	}
 	return ret

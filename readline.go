@@ -45,13 +45,13 @@ type Config struct {
 	InterruptPrompt string
 	EOFPrompt       string
 
-	FuncGetWidth    func() int
+	FuncGetWidth func() int
 	// Function that returns width, height of the terminal or -1,-1 if unknown
-	FuncGetSize     func() (width int, height int)
+	FuncGetSize func() (width int, height int)
 
-	Stdin       io.Reader
-	Stdout      io.Writer
-	Stderr      io.Writer
+	Stdin  io.Reader
+	Stdout io.Writer
+	Stderr io.Writer
 
 	EnableMask bool
 	MaskRune   rune
@@ -72,7 +72,7 @@ type Config struct {
 	ForceUseInteractive bool
 
 	// private fields
-	inited    bool
+	inited        bool
 	fillableStdin io.ReadWriter
 	isInteractive bool
 }
@@ -274,9 +274,10 @@ func (i *Instance) Write(b []byte) (int, error) {
 // this data will be written before the user input, and the user will be able
 // to edit it.
 // For example:
-//  i := readline.New()
-//  i.FillStdin([]byte("test"))
-//  _, _= i.Readline()
+//
+//	i := readline.New()
+//	i.FillStdin([]byte("test"))
+//	_, _= i.Readline()
 //
 // yields
 //

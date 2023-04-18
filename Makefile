@@ -7,6 +7,7 @@ ci: test examples
 test:
 	go test -race ./...
 	go vet ./...
+	./.check-gofmt.sh
 
 examples:
 	GOOS=linux go build -o /dev/null example/readline-demo/readline-demo.go

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # exclude vendor/
-SOURCES="*.go"
+SOURCES="*.go internal/ example/"
 
 if [ "$1" = "--fix" ]; then
 	exec gofmt -s -w $SOURCES

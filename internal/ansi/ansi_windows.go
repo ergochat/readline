@@ -34,8 +34,8 @@ import (
 )
 
 var (
-	ansiErr     error
-	ansiOnce    sync.Once
+	ansiErr  error
+	ansiOnce sync.Once
 )
 
 func EnableANSI() error {

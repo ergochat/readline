@@ -11,26 +11,26 @@ type twidth struct {
 }
 
 func TestSingleRuneWidth(t *testing.T) {
-        type test struct {
-                r  rune
-                w  int
-        }
+	type test struct {
+		r rune
+		w int
+	}
 
-        tests := []test{
-		{0, 0},             // default rune is 0 - default mask
+	tests := []test{
+		{0, 0}, // default rune is 0 - default mask
 		{'a', 1},
 		{'☭', 1},
 		{'你', 2},
-		{'日', 2},          // kanji
-		{'ｶ', 1},           // half-width katakana
-		{'カ', 2},          // full-width katakana
-		{'ひ', 2},          // full-width hiragana 
-		{'Ｗ', 2},          // full-width romanji
-		{'）', 2},          // full-width symbols
-		{'😅', 2},          // emoji
-        }
+		{'日', 2}, // kanji
+		{'ｶ', 1}, // half-width katakana
+		{'カ', 2}, // full-width katakana
+		{'ひ', 2}, // full-width hiragana
+		{'Ｗ', 2}, // full-width romanji
+		{'）', 2}, // full-width symbols
+		{'😅', 2}, // emoji
+	}
 
-        for _, test := range tests {
+	for _, test := range tests {
 		if w := Width(test.r); w != test.w {
 			t.Error("result is not expected", string(test.r), test.w, w)
 		}
@@ -44,14 +44,14 @@ func TestRuneWidth(t *testing.T) {
 		{[]rune("a"), 1},
 		{[]rune("你"), 2},
 		{ColorFilter([]rune("☭\033[13;1m你")), 3},
-		{[]rune("漢字"), 4},           // kanji
-		{[]rune("ｶﾀｶﾅ"), 4},           // half-width katakana
-		{[]rune("カタカナ"), 8},       // full-width katakana
-		{[]rune("ひらがな"), 8},       // full-width hiragana 
-		{[]rune("ＷＩＤＥ"), 8},       // full-width romanji
-		{[]rune("ー。"), 4},           // full-width symbols
-		{[]rune("안녕하세요"), 10},    // full-width Hangul
-		{[]rune("😅"), 2},             // emoji
+		{[]rune("漢字"), 4},     // kanji
+		{[]rune("ｶﾀｶﾅ"), 4},   // half-width katakana
+		{[]rune("カタカナ"), 8},   // full-width katakana
+		{[]rune("ひらがな"), 8},   // full-width hiragana
+		{[]rune("ＷＩＤＥ"), 8},   // full-width romanji
+		{[]rune("ー。"), 4},     // full-width symbols
+		{[]rune("안녕하세요"), 10}, // full-width Hangul
+		{[]rune("😅"), 2},      // emoji
 	}
 	for _, r := range rs {
 		if w := WidthAll(r.r); w != r.length {

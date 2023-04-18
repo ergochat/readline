@@ -9,13 +9,13 @@ import (
 // reading into the real stdin
 type fillableStdin struct {
 	sync.Mutex
-	stdin       io.Reader
-	buf         []byte
+	stdin io.Reader
+	buf   []byte
 }
 
 func newFillableStdin(stdin io.Reader) io.ReadWriter {
 	return &fillableStdin{
-		stdin:       stdin,
+		stdin: stdin,
 	}
 }
 
