@@ -129,7 +129,7 @@ func (c *Config) init() error {
 		c.FuncOnWidthChanged = platform.DefaultOnSizeChanged
 	}
 	if c.Painter == nil {
-		c.Painter = &defaultPainter{}
+		c.Painter = defaultPainter
 	}
 
 	c.isInteractive = c.ForceUseInteractive || c.FuncIsTerminal()
@@ -300,4 +300,12 @@ func (i *Instance) HistoryDisable() {
 // HistoryEnable the save of the commands into the history (default on)
 func (i *Instance) HistoryEnable() {
 	i.operation.history.Enable()
+}
+
+// Painter is a callback type to allow modifying the buffer before it is rendered
+// on screen, for example, to implement real-time syntax highlighting.
+type Painter func(line []rune, pos int) []rune
+
+func defaultPainter(line []rune, _ int) []rune {
+	return line
 }
