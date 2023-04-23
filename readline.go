@@ -233,8 +233,10 @@ func (i *Instance) ReadLineWithDefault(defaultValue string) (string, error) {
 	return i.operation.String()
 }
 
-func (i *Instance) SaveHistory(content string) error {
-	return i.operation.SaveHistory(content)
+// SaveToHistory adds a string to the instance's stored history. This is particularly
+// relevant when DisableAutoSaveHistory is configured.
+func (i *Instance) SaveToHistory(content string) error {
+	return i.operation.SaveToHistory(content)
 }
 
 // same as readline

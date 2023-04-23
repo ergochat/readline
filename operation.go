@@ -534,9 +534,7 @@ func (o *operation) ResetHistory() {
 	o.history.Reset()
 }
 
-// if err is not nil, it just mean it fail to write to file
-// other things goes fine.
-func (o *operation) SaveHistory(content string) error {
+func (o *operation) SaveToHistory(content string) error {
 	return o.history.New([]rune(content))
 }
 
