@@ -170,12 +170,6 @@ func (i *Instance) SetPrompt(s string) {
 	i.SetConfig(cfg)
 }
 
-func (i *Instance) SetMaskRune(r rune) {
-	cfg := i.GetConfig()
-	cfg.MaskRune = r
-	i.SetConfig(cfg)
-}
-
 // readline will refresh automatic when write through Stdout()
 func (i *Instance) Stdout() io.Writer {
 	return i.operation.Stdout()
