@@ -471,21 +471,15 @@ func (o *operation) GenPasswordConfig() *Config {
 	}
 }
 
-func (o *operation) PasswordWithConfig(cfg *Config) ([]byte, error) {
+func (o *operation) ReadLineWithConfig(cfg *Config) (string, error) {
 	backupCfg, err := o.SetConfig(cfg)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	defer func() {
 		o.SetConfig(backupCfg)
 	}()
-	return o.Slice()
-}
-
-func (o *operation) Password(prompt string) ([]byte, error) {
-	cfg := o.GenPasswordConfig()
-	cfg.Prompt = prompt
-	return o.PasswordWithConfig(cfg)
+	return o.String()
 }
 
 func (o *operation) SetTitle(t string) {

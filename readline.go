@@ -197,22 +197,34 @@ func (i *Instance) IsVimMode() bool {
 	return i.operation.vim.IsEnableVimMode()
 }
 
-func (i *Instance) GenPasswordConfig() *Config {
+// GeneratePasswordConfig generates a suitable Config for reading passwords;
+// this config can be modified and then used with ReadLineWithConfig, or
+// SetConfig.
+func (i *Instance) GeneratePasswordConfig() *Config {
 	return i.operation.GenPasswordConfig()
 }
 
-// we can generate a config by `i.GenPasswordConfig()`
-func (i *Instance) ReadPasswordWithConfig(cfg *Config) ([]byte, error) {
-	return i.operation.PasswordWithConfig(cfg)
+func (i *Instance) ReadLineWithConfig(cfg *Config) (string, error) {
+	return i.operation.ReadLineWithConfig(cfg)
 }
 
 func (i *Instance) ReadPassword(prompt string) ([]byte, error) {
-	return i.operation.Password(prompt)
+	if result, err := i.ReadLineWithConfig(i.GeneratePasswordConfig()); err == nil {
+		return []byte(result), nil
+	} else {
+		return nil, err
+	}
 }
 
-// err is one of (nil, io.EOF, readline.ErrInterrupt)
-func (i *Instance) Readline() (string, error) {
+// ReadLine reads a line from the configured input source, allowing inline editing.
+// The returned error is either nil, io.EOF, or readline.ErrInterrupt.
+func (i *Instance) ReadLine() (string, error) {
 	return i.operation.String()
+}
+
+// Readline is an alias for ReadLine, for compatibility.
+func (i *Instance) Readline() (string, error) {
+	return i.ReadLine()
 }
 
 // SetDefault prefills a default value for the next call to Readline()
@@ -222,8 +234,8 @@ func (i *Instance) SetDefault(defaultValue string) {
 	i.operation.SetBuffer(defaultValue)
 }
 
-func (i *Instance) ReadlineWithDefault(what string) (string, error) {
-	i.SetDefault(what)
+func (i *Instance) ReadLineWithDefault(defaultValue string) (string, error) {
+	i.SetDefault(defaultValue)
 	return i.operation.String()
 }
 
@@ -278,22 +290,24 @@ func (i *Instance) GetConfig() *Config {
 	return result
 }
 
+// SetConfig modifies the current instance's config.
 func (i *Instance) SetConfig(cfg *Config) error {
 	_, err := i.operation.SetConfig(cfg)
 	return err
 }
 
+// Refresh redraws the input buffer on screen.
 func (i *Instance) Refresh() {
 	i.operation.Refresh()
 }
 
-// HistoryDisable the save of the commands into the history
-func (i *Instance) HistoryDisable() {
+// DisableHistory disables the saving of input lines in history.
+func (i *Instance) DisableHistory() {
 	i.operation.history.Disable()
 }
 
-// HistoryEnable the save of the commands into the history (default on)
-func (i *Instance) HistoryEnable() {
+// EnableHistory enables the saving of input lines in history.
+func (i *Instance) EnableHistory() {
 	i.operation.history.Enable()
 }
 
