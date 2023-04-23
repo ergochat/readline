@@ -351,11 +351,14 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 			}
 		}
 
-		listener := o.GetConfig().Listener
-		if listener != nil {
-			newLine, newPos, ok := listener.OnChange(o.buf.Runes(), o.buf.Pos(), r)
-			if ok {
-				o.buf.SetWithIdx(newPos, newLine)
+		// suppress the Listener callback if we received Enter or similar and are
+		// submitting the result, since the buffer has already been cleared:
+		if result == nil {
+			if listener := o.GetConfig().Listener; listener != nil {
+				newLine, newPos, ok := listener(o.buf.Runes(), o.buf.Pos(), r)
+				if ok {
+					o.buf.SetWithIdx(newPos, newLine)
+				}
 			}
 		}
 
@@ -403,7 +406,7 @@ func (o *operation) Runes() ([]rune, error) {
 
 	listener := o.GetConfig().Listener
 	if listener != nil {
-		listener.OnChange(nil, 0, 0)
+		listener(nil, 0, 0)
 	}
 
 	// Before writing the prompt and starting to read, get a lock
@@ -557,20 +560,4 @@ func (o *operation) refresh() {
 
 func (o *operation) Clean() {
 	o.buf.Clean()
-}
-
-func FuncListener(f func(line []rune, pos int, key rune) (newLine []rune, newPos int, ok bool)) Listener {
-	return &DumpListener{f: f}
-}
-
-type DumpListener struct {
-	f func(line []rune, pos int, key rune) (newLine []rune, newPos int, ok bool)
-}
-
-func (d *DumpListener) OnChange(line []rune, pos int, key rune) (newLine []rune, newPos int, ok bool) {
-	return d.f(line, pos, key)
-}
-
-type Listener interface {
-	OnChange(line []rune, pos int, key rune) (newLine []rune, newPos int, ok bool)
 }

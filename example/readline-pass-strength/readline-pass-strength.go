@@ -80,11 +80,11 @@ func main() {
 	defer rl.Close()
 
 	setPasswordCfg := rl.GenPasswordConfig()
-	setPasswordCfg.SetListener(func(line []rune, pos int, key rune) (newLine []rune, newPos int, ok bool) {
+	setPasswordCfg.Listener = func(line []rune, pos int, key rune) (newLine []rune, newPos int, ok bool) {
 		rl.SetPrompt(createStrengthPrompt(line))
 		rl.Refresh()
 		return nil, 0, false
-	})
+	}
 
 	pswd, err := rl.ReadPasswordWithConfig(setPasswordCfg)
 	if err != nil {

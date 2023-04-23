@@ -88,11 +88,11 @@ func main() {
 	l.CaptureExitSignal()
 
 	setPasswordCfg := l.GenPasswordConfig()
-	setPasswordCfg.SetListener(func(line []rune, pos int, key rune) (newLine []rune, newPos int, ok bool) {
+	setPasswordCfg.Listener = func(line []rune, pos int, key rune) (newLine []rune, newPos int, ok bool) {
 		l.SetPrompt(fmt.Sprintf("Enter password(%v): ", len(line)))
 		l.Refresh()
 		return nil, 0, false
-	})
+	}
 
 	log.SetOutput(l.Stderr())
 	for {

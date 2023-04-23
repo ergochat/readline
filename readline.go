@@ -33,8 +33,7 @@ type Config struct {
 	// AutoCompleter will called once user press TAB
 	AutoComplete AutoCompleter
 
-	// Any key press will pass to Listener
-	// NOTE: Listener will be triggered by (nil, 0, 0) immediately
+	// Listener is an optional callback to intercept keypresses.
 	Listener Listener
 
 	Painter Painter
@@ -135,10 +134,6 @@ func (c *Config) init() error {
 	c.isInteractive = c.ForceUseInteractive || c.FuncIsTerminal()
 
 	return nil
-}
-
-func (c *Config) SetListener(f func(line []rune, pos int, key rune) (newLine []rune, newPos int, ok bool)) {
-	c.Listener = FuncListener(f)
 }
 
 // NewFromConfig creates a readline instance from the specified configuration.
@@ -309,3 +304,9 @@ type Painter func(line []rune, pos int) []rune
 func defaultPainter(line []rune, _ int) []rune {
 	return line
 }
+
+// Listener is a callback type to listen for keypresses while the line is being
+// edited. It is invoked initially with (nil, 0, 0), and then subsequently for
+// any keypress until (but not including) the newline/enter keypress that completes
+// the input.
+type Listener func(line []rune, pos int, key rune) (newLine []rune, newPos int, ok bool)
