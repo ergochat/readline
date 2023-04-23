@@ -99,9 +99,9 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 		keepInCompleteMode := false
 		r, err := o.t.GetRune(deadline)
 
-		if err == nil && o.GetConfig().FuncFilterInputRune != nil {
+		if cfg := o.GetConfig(); cfg.FuncFilterInputRune != nil && err != nil {
 			var process bool
-			r, process = o.GetConfig().FuncFilterInputRune(r)
+			r, process = cfg.FuncFilterInputRune(r)
 			if !process {
 				o.buf.Refresh(nil) // to refresh the line
 				continue           // ignore this rune
