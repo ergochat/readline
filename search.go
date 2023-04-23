@@ -6,20 +6,24 @@ import (
 	"fmt"
 )
 
-const (
-	S_STATE_FOUND = iota
-	S_STATE_FAILING
-)
+type searchState uint
 
 const (
-	S_DIR_BCK = iota
-	S_DIR_FWD
+	searchStateFound searchState = iota
+	searchStateFailing
+)
+
+type searchDirection uint
+
+const (
+	searchDirectionForward searchDirection = iota
+	searchDirectionBackward
 )
 
 type opSearch struct {
 	inMode    bool
-	state     int
-	dir       int
+	state     searchState
+	dir       searchDirection
 	source    *list.Element
 	w         *terminal
 	buf       *runeBuffer
@@ -49,7 +53,7 @@ func (o *opSearch) SearchBackspace() {
 }
 
 func (o *opSearch) findHistoryBy(isNewSearch bool) (int, *list.Element) {
-	if o.dir == S_DIR_BCK {
+	if o.dir == searchDirectionBackward {
 		return o.history.FindBck(isNewSearch, o.data, o.buf.idx)
 	}
 	return o.history.FindFwd(isNewSearch, o.data, o.buf.idx)
@@ -57,7 +61,7 @@ func (o *opSearch) findHistoryBy(isNewSearch bool) (int, *list.Element) {
 
 func (o *opSearch) search(isChange bool) bool {
 	if len(o.data) == 0 {
-		o.state = S_STATE_FOUND
+		o.state = searchStateFound
 		o.SearchRefresh(-1)
 		return true
 	}
@@ -70,7 +74,7 @@ func (o *opSearch) search(isChange bool) bool {
 
 	item := o.history.showItem(o.history.current.Value)
 	start, end := 0, 0
-	if o.dir == S_DIR_BCK {
+	if o.dir == searchDirectionBackward {
 		start, end = idx, idx+len(o.data)
 	} else {
 		start, end = idx, idx+len(o.data)
@@ -87,7 +91,7 @@ func (o *opSearch) SearchChar(r rune) {
 	o.search(true)
 }
 
-func (o *opSearch) SearchMode(dir int) bool {
+func (o *opSearch) SearchMode(dir searchDirection) bool {
 	tWidth, _ := o.w.GetWidthHeight()
 	if tWidth == 0 {
 		return false
@@ -110,7 +114,7 @@ func (o *opSearch) ExitSearchMode(revert bool) {
 		o.buf.Set(o.history.showItem(o.history.current.Value))
 	}
 	o.markStart, o.markEnd = 0, 0
-	o.state = S_STATE_FOUND
+	o.state = searchStateFound
 	o.inMode = false
 	o.source = nil
 	o.data = nil
@@ -119,9 +123,9 @@ func (o *opSearch) ExitSearchMode(revert bool) {
 func (o *opSearch) SearchRefresh(x int) {
 	tWidth, _ := o.w.GetWidthHeight()
 	if x == -2 {
-		o.state = S_STATE_FAILING
+		o.state = searchStateFailing
 	} else if x >= 0 {
-		o.state = S_STATE_FOUND
+		o.state = searchStateFound
 	}
 	if x < 0 {
 		x = o.buf.idx
@@ -138,12 +142,12 @@ func (o *opSearch) SearchRefresh(x int) {
 	buf := bytes.NewBuffer(nil)
 	buf.Write(bytes.Repeat([]byte("\n"), lineCnt))
 	buf.WriteString("\033[J")
-	if o.state == S_STATE_FAILING {
+	if o.state == searchStateFailing {
 		buf.WriteString("failing ")
 	}
-	if o.dir == S_DIR_BCK {
+	if o.dir == searchDirectionBackward {
 		buf.WriteString("bck")
-	} else if o.dir == S_DIR_FWD {
+	} else if o.dir == searchDirectionForward {
 		buf.WriteString("fwd")
 	}
 	buf.WriteString("-i-search: ")

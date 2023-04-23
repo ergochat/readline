@@ -190,7 +190,7 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 			}
 			o.buf.Refresh(nil)
 		case CharBckSearch:
-			if !o.search.SearchMode(S_DIR_BCK) {
+			if !o.search.SearchMode(searchDirectionBackward) {
 				o.t.Bell()
 				break
 			}
@@ -198,7 +198,7 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 		case CharCtrlU:
 			o.buf.KillFront()
 		case CharFwdSearch:
-			if !o.search.SearchMode(S_DIR_FWD) {
+			if !o.search.SearchMode(searchDirectionForward) {
 				o.t.Bell()
 				break
 			}
