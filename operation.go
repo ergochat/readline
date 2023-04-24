@@ -67,9 +67,7 @@ func (o *operation) write(target io.Writer, b []byte) (int, error) {
 		}
 	})
 
-	if o.search.IsSearchMode() {
-		o.search.SearchRefresh(-1)
-	}
+	o.search.RefreshIfNeeded()
 	if o.completer.IsInCompleteMode() {
 		o.completer.CompleteRefresh()
 	}
