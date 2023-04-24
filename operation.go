@@ -173,20 +173,6 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 				o.completer.ExitCompleteMode(true)
 				o.buf.Refresh(nil)
 			}
-		case CharTab:
-			if o.GetConfig().AutoComplete == nil {
-				o.t.Bell()
-				break
-			}
-			if o.completer.OnComplete() {
-				if o.completer.IsInCompleteMode() {
-					keepInCompleteMode = true
-					continue // redraw is done, loop
-				}
-			} else {
-				o.t.Bell()
-			}
-			o.buf.Refresh(nil)
 		case CharBckSearch:
 			if !o.search.SearchMode(searchDirectionBackward) {
 				o.t.Bell()
@@ -332,6 +318,20 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 			isUpdateHistory = false
 			o.history.Revert()
 			return nil, ErrInterrupt
+		case CharTab:
+			if o.GetConfig().AutoComplete != nil {
+				if o.completer.OnComplete() {
+					if o.completer.IsInCompleteMode() {
+						keepInCompleteMode = true
+						continue // redraw is done, loop
+					}
+				} else {
+					o.t.Bell()
+				}
+				o.buf.Refresh(nil)
+				break
+			} // else: process as a normal input character
+			fallthrough
 		default:
 			if o.search.IsSearchMode() {
 				o.search.SearchChar(r)

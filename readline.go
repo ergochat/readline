@@ -105,9 +105,6 @@ func (c *Config) init() error {
 		c.EOFPrompt = ""
 	}
 
-	if c.AutoComplete == nil {
-		c.AutoComplete = &TabCompleter{}
-	}
 	if c.FuncGetWidth == nil {
 		c.FuncGetWidth = platform.GetScreenWidth
 	}
