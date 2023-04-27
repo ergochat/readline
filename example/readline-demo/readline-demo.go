@@ -87,12 +87,12 @@ func main() {
 	defer l.Close()
 	l.CaptureExitSignal()
 
-	setPasswordCfg := l.GenPasswordConfig()
-	setPasswordCfg.SetListener(func(line []rune, pos int, key rune) (newLine []rune, newPos int, ok bool) {
+	setPasswordCfg := l.GeneratePasswordConfig()
+	setPasswordCfg.Listener = func(line []rune, pos int, key rune) (newLine []rune, newPos int, ok bool) {
 		l.SetPrompt(fmt.Sprintf("Enter password(%v): ", len(line)))
 		l.Refresh()
 		return nil, 0, false
-	})
+	}
 
 	log.SetOutput(l.Stderr())
 	for {
@@ -133,7 +133,7 @@ func main() {
 		case line == "help":
 			usage(l.Stderr())
 		case line == "setpassword":
-			pswd, err := l.ReadPasswordWithConfig(setPasswordCfg)
+			pswd, err := l.ReadLineWithConfig(setPasswordCfg)
 			if err == nil {
 				println("you set:", strconv.Quote(string(pswd)))
 			}

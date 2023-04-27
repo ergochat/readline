@@ -33,8 +33,7 @@ type Config struct {
 	// AutoCompleter will called once user press TAB
 	AutoComplete AutoCompleter
 
-	// Any key press will pass to Listener
-	// NOTE: Listener will be triggered by (nil, 0, 0) immediately
+	// Listener is an optional callback to intercept keypresses.
 	Listener Listener
 
 	Painter Painter
@@ -106,9 +105,6 @@ func (c *Config) init() error {
 		c.EOFPrompt = ""
 	}
 
-	if c.AutoComplete == nil {
-		c.AutoComplete = &TabCompleter{}
-	}
 	if c.FuncGetWidth == nil {
 		c.FuncGetWidth = platform.GetScreenWidth
 	}
@@ -129,16 +125,12 @@ func (c *Config) init() error {
 		c.FuncOnWidthChanged = platform.DefaultOnSizeChanged
 	}
 	if c.Painter == nil {
-		c.Painter = &defaultPainter{}
+		c.Painter = defaultPainter
 	}
 
 	c.isInteractive = c.ForceUseInteractive || c.FuncIsTerminal()
 
 	return nil
-}
-
-func (c *Config) SetListener(f func(line []rune, pos int, key rune) (newLine []rune, newPos int, ok bool)) {
-	c.Listener = FuncListener(f)
 }
 
 // NewFromConfig creates a readline instance from the specified configuration.
@@ -175,12 +167,6 @@ func (i *Instance) SetPrompt(s string) {
 	i.SetConfig(cfg)
 }
 
-func (i *Instance) SetMaskRune(r rune) {
-	cfg := i.GetConfig()
-	cfg.MaskRune = r
-	i.SetConfig(cfg)
-}
-
 // readline will refresh automatic when write through Stdout()
 func (i *Instance) Stdout() io.Writer {
 	return i.operation.Stdout()
@@ -202,22 +188,34 @@ func (i *Instance) IsVimMode() bool {
 	return i.operation.vim.IsEnableVimMode()
 }
 
-func (i *Instance) GenPasswordConfig() *Config {
+// GeneratePasswordConfig generates a suitable Config for reading passwords;
+// this config can be modified and then used with ReadLineWithConfig, or
+// SetConfig.
+func (i *Instance) GeneratePasswordConfig() *Config {
 	return i.operation.GenPasswordConfig()
 }
 
-// we can generate a config by `i.GenPasswordConfig()`
-func (i *Instance) ReadPasswordWithConfig(cfg *Config) ([]byte, error) {
-	return i.operation.PasswordWithConfig(cfg)
+func (i *Instance) ReadLineWithConfig(cfg *Config) (string, error) {
+	return i.operation.ReadLineWithConfig(cfg)
 }
 
 func (i *Instance) ReadPassword(prompt string) ([]byte, error) {
-	return i.operation.Password(prompt)
+	if result, err := i.ReadLineWithConfig(i.GeneratePasswordConfig()); err == nil {
+		return []byte(result), nil
+	} else {
+		return nil, err
+	}
 }
 
-// err is one of (nil, io.EOF, readline.ErrInterrupt)
-func (i *Instance) Readline() (string, error) {
+// ReadLine reads a line from the configured input source, allowing inline editing.
+// The returned error is either nil, io.EOF, or readline.ErrInterrupt.
+func (i *Instance) ReadLine() (string, error) {
 	return i.operation.String()
+}
+
+// Readline is an alias for ReadLine, for compatibility.
+func (i *Instance) Readline() (string, error) {
+	return i.ReadLine()
 }
 
 // SetDefault prefills a default value for the next call to Readline()
@@ -227,13 +225,15 @@ func (i *Instance) SetDefault(defaultValue string) {
 	i.operation.SetBuffer(defaultValue)
 }
 
-func (i *Instance) ReadlineWithDefault(what string) (string, error) {
-	i.SetDefault(what)
+func (i *Instance) ReadLineWithDefault(defaultValue string) (string, error) {
+	i.SetDefault(defaultValue)
 	return i.operation.String()
 }
 
-func (i *Instance) SaveHistory(content string) error {
-	return i.operation.SaveHistory(content)
+// SaveToHistory adds a string to the instance's stored history. This is particularly
+// relevant when DisableAutoSaveHistory is configured.
+func (i *Instance) SaveToHistory(content string) error {
+	return i.operation.SaveToHistory(content)
 }
 
 // same as readline
@@ -283,21 +283,37 @@ func (i *Instance) GetConfig() *Config {
 	return result
 }
 
+// SetConfig modifies the current instance's config.
 func (i *Instance) SetConfig(cfg *Config) error {
 	_, err := i.operation.SetConfig(cfg)
 	return err
 }
 
+// Refresh redraws the input buffer on screen.
 func (i *Instance) Refresh() {
 	i.operation.Refresh()
 }
 
-// HistoryDisable the save of the commands into the history
-func (i *Instance) HistoryDisable() {
+// DisableHistory disables the saving of input lines in history.
+func (i *Instance) DisableHistory() {
 	i.operation.history.Disable()
 }
 
-// HistoryEnable the save of the commands into the history (default on)
-func (i *Instance) HistoryEnable() {
+// EnableHistory enables the saving of input lines in history.
+func (i *Instance) EnableHistory() {
 	i.operation.history.Enable()
 }
+
+// Painter is a callback type to allow modifying the buffer before it is rendered
+// on screen, for example, to implement real-time syntax highlighting.
+type Painter func(line []rune, pos int) []rune
+
+func defaultPainter(line []rune, _ int) []rune {
+	return line
+}
+
+// Listener is a callback type to listen for keypresses while the line is being
+// edited. It is invoked initially with (nil, 0, 0), and then subsequently for
+// any keypress until (but not including) the newline/enter keypress that completes
+// the input.
+type Listener func(line []rune, pos int, key rune) (newLine []rune, newPos int, ok bool)

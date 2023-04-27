@@ -67,9 +67,7 @@ func (o *operation) write(target io.Writer, b []byte) (int, error) {
 		}
 	})
 
-	if o.search.IsSearchMode() {
-		o.search.SearchRefresh(-1)
-	}
+	o.search.RefreshIfNeeded()
 	if o.completer.IsInCompleteMode() {
 		o.completer.CompleteRefresh()
 	}
@@ -99,9 +97,9 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 		keepInCompleteMode := false
 		r, err := o.t.GetRune(deadline)
 
-		if err == nil && o.GetConfig().FuncFilterInputRune != nil {
+		if cfg := o.GetConfig(); cfg.FuncFilterInputRune != nil && err != nil {
 			var process bool
-			r, process = o.GetConfig().FuncFilterInputRune(r)
+			r, process = cfg.FuncFilterInputRune(r)
 			if !process {
 				o.buf.Refresh(nil) // to refresh the line
 				continue           // ignore this rune
@@ -175,20 +173,6 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 				o.completer.ExitCompleteMode(true)
 				o.buf.Refresh(nil)
 			}
-		case CharTab:
-			if o.GetConfig().AutoComplete == nil {
-				o.t.Bell()
-				break
-			}
-			if o.completer.OnComplete() {
-				if o.completer.IsInCompleteMode() {
-					keepInCompleteMode = true
-					continue // redraw is done, loop
-				}
-			} else {
-				o.t.Bell()
-			}
-			o.buf.Refresh(nil)
 		case CharBckSearch:
 			if !o.search.SearchMode(searchDirectionBackward) {
 				o.t.Bell()
@@ -334,6 +318,20 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 			isUpdateHistory = false
 			o.history.Revert()
 			return nil, ErrInterrupt
+		case CharTab:
+			if o.GetConfig().AutoComplete != nil {
+				if o.completer.OnComplete() {
+					if o.completer.IsInCompleteMode() {
+						keepInCompleteMode = true
+						continue // redraw is done, loop
+					}
+				} else {
+					o.t.Bell()
+				}
+				o.buf.Refresh(nil)
+				break
+			} // else: process as a normal input character
+			fallthrough
 		default:
 			if o.search.IsSearchMode() {
 				o.search.SearchChar(r)
@@ -351,11 +349,14 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 			}
 		}
 
-		listener := o.GetConfig().Listener
-		if listener != nil {
-			newLine, newPos, ok := listener.OnChange(o.buf.Runes(), o.buf.Pos(), r)
-			if ok {
-				o.buf.SetWithIdx(newPos, newLine)
+		// suppress the Listener callback if we received Enter or similar and are
+		// submitting the result, since the buffer has already been cleared:
+		if result == nil {
+			if listener := o.GetConfig().Listener; listener != nil {
+				newLine, newPos, ok := listener(o.buf.Runes(), o.buf.Pos(), r)
+				if ok {
+					o.buf.SetWithIdx(newPos, newLine)
+				}
 			}
 		}
 
@@ -403,7 +404,7 @@ func (o *operation) Runes() ([]rune, error) {
 
 	listener := o.GetConfig().Listener
 	if listener != nil {
-		listener.OnChange(nil, 0, 0)
+		listener(nil, 0, 0)
 	}
 
 	// Before writing the prompt and starting to read, get a lock
@@ -468,21 +469,15 @@ func (o *operation) GenPasswordConfig() *Config {
 	}
 }
 
-func (o *operation) PasswordWithConfig(cfg *Config) ([]byte, error) {
+func (o *operation) ReadLineWithConfig(cfg *Config) (string, error) {
 	backupCfg, err := o.SetConfig(cfg)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	defer func() {
 		o.SetConfig(backupCfg)
 	}()
-	return o.Slice()
-}
-
-func (o *operation) Password(prompt string) ([]byte, error) {
-	cfg := o.GenPasswordConfig()
-	cfg.Prompt = prompt
-	return o.PasswordWithConfig(cfg)
+	return o.String()
 }
 
 func (o *operation) SetTitle(t string) {
@@ -537,9 +532,7 @@ func (o *operation) ResetHistory() {
 	o.history.Reset()
 }
 
-// if err is not nil, it just mean it fail to write to file
-// other things goes fine.
-func (o *operation) SaveHistory(content string) error {
+func (o *operation) SaveToHistory(content string) error {
 	return o.history.New([]rune(content))
 }
 
@@ -557,30 +550,4 @@ func (o *operation) refresh() {
 
 func (o *operation) Clean() {
 	o.buf.Clean()
-}
-
-func FuncListener(f func(line []rune, pos int, key rune) (newLine []rune, newPos int, ok bool)) Listener {
-	return &DumpListener{f: f}
-}
-
-type DumpListener struct {
-	f func(line []rune, pos int, key rune) (newLine []rune, newPos int, ok bool)
-}
-
-func (d *DumpListener) OnChange(line []rune, pos int, key rune) (newLine []rune, newPos int, ok bool) {
-	return d.f(line, pos, key)
-}
-
-type Listener interface {
-	OnChange(line []rune, pos int, key rune) (newLine []rune, newPos int, ok bool)
-}
-
-type Painter interface {
-	Paint(line []rune, pos int) []rune
-}
-
-type defaultPainter struct{}
-
-func (p *defaultPainter) Paint(line []rune, _ int) []rune {
-	return line
 }

@@ -492,7 +492,7 @@ func (r *runeBuffer) append(s []rune) {
 			buf.WriteRune(cfg.MaskRune)
 		}
 	} else {
-		for _, e := range cfg.Painter.Paint(s, slen) {
+		for _, e := range cfg.Painter(s, slen) {
 			if e == '\t' {
 				buf.WriteString(strings.Repeat(" ", runes.TabWidth))
 			} else {
@@ -534,7 +534,7 @@ func (r *runeBuffer) output() []byte {
 			buf.WriteRune(cfg.MaskRune)
 		}
 	} else {
-		for _, e := range cfg.Painter.Paint(r.buf, r.idx) {
+		for _, e := range cfg.Painter(r.buf, r.idx) {
 			if e == '\t' {
 				buf.WriteString(strings.Repeat(" ", runes.TabWidth))
 			} else {

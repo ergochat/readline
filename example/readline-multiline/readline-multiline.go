@@ -35,7 +35,7 @@ func main() {
 		cmd := strings.Join(cmds, " ")
 		cmds = cmds[:0]
 		rl.SetPrompt("> ")
-		rl.SaveHistory(cmd)
+		rl.SaveToHistory(cmd)
 		println(cmd)
 	}
 }

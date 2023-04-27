@@ -20,12 +20,6 @@ type AutoCompleter interface {
 	Do(line []rune, pos int) (newLine [][]rune, length int)
 }
 
-type TabCompleter struct{}
-
-func (t *TabCompleter) Do([]rune, int) ([][]rune, int) {
-	return [][]rune{[]rune("\t")}, 0
-}
-
 type opCompleter struct {
 	w  *terminal
 	op *operation
