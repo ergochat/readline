@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"strconv"
 	"strings"
 	"time"
@@ -70,6 +71,15 @@ func filterInput(r rune) (rune, bool) {
 	return r, true
 }
 
+func asyncSleep(instance *readline.Instance, min, max time.Duration) {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for {
+		duration := min + time.Duration(int64(float64(max-min)*r.Float64()))
+		time.Sleep(duration)
+		fmt.Fprintf(instance, "Slept for %v\n", duration)
+	}
+}
+
 func main() {
 	l, err := readline.NewEx(&readline.Config{
 		Prompt:          "\033[31m»\033[0m ",
@@ -95,6 +105,7 @@ func main() {
 	}
 
 	log.SetOutput(l.Stderr())
+	asyncStarted := false
 	for {
 		line, err := l.Readline()
 		if err == readline.ErrInterrupt {
@@ -159,6 +170,14 @@ func main() {
 		case line == "sleep":
 			log.Println("sleep 4 second")
 			time.Sleep(4 * time.Second)
+		case line == "async":
+			if !asyncStarted {
+				asyncStarted = true
+				log.Println("initialize async sleep/write")
+				go asyncSleep(l, time.Second, 3*time.Second)
+			} else {
+				log.Println("async writes already started")
+			}
 		case line == "":
 		default:
 			log.Println("you said:", strconv.Quote(line))
