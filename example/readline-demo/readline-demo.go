@@ -60,6 +60,8 @@ var completer = readline.NewPrefixCompleter(
 		readline.PcItem("test"),
 	),
 	readline.PcItem("sleep"),
+	readline.PcItem("async"),
+	readline.PcItem("clear"),
 )
 
 func filterInput(r rune) (rune, bool) {
