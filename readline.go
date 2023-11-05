@@ -267,10 +267,8 @@ func (i *Instance) CaptureExitSignal() {
 	}()
 }
 
-func (i *Instance) Clean() {
-	i.operation.Clean()
-}
-
+// Write writes output to the screen, redrawing the prompt and buffer
+// as needed.
 func (i *Instance) Write(b []byte) (int, error) {
 	return i.Stdout().Write(b)
 }
@@ -302,6 +300,11 @@ func (i *Instance) DisableHistory() {
 // EnableHistory enables the saving of input lines in history.
 func (i *Instance) EnableHistory() {
 	i.operation.history.Enable()
+}
+
+// ClearScreen clears the screen.
+func (i *Instance) ClearScreen() {
+	clearScreen(i.operation.Stdout())
 }
 
 // Painter is a callback type to allow modifying the buffer before it is rendered

@@ -178,6 +178,8 @@ func main() {
 			} else {
 				log.Println("async writes already started")
 			}
+		case line == "clear":
+			l.ClearScreen()
 		case line == "":
 		default:
 			log.Println("you said:", strconv.Quote(line))

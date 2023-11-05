@@ -3,7 +3,6 @@
 package platform
 
 import (
-	"io"
 	"syscall"
 )
 
@@ -36,11 +35,6 @@ func GetScreenSize() (width int, height int) {
 	height = int(info.srWindow.bottom) - int(info.srWindow.top) + 1
 	width = int(info.srWindow.right) - int(info.srWindow.left) + 1
 	return
-}
-
-// ClearScreen clears the console screen
-func ClearScreen(_ io.Writer) error {
-	return SetConsoleCursorPosition(&_COORD{0, 0})
 }
 
 func DefaultIsTerminal() bool {

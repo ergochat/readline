@@ -3,6 +3,7 @@ package readline
 import (
 	"container/list"
 	"fmt"
+	"io"
 	"os"
 	"sync"
 
@@ -71,6 +72,11 @@ func (r *rawModeHandler) Exit() error {
 	if err == nil {
 		r.state = nil
 	}
+	return err
+}
+
+func clearScreen(w io.Writer) error {
+	_, err := w.Write([]byte("\x1b[H\x1b[J"))
 	return err
 }
 

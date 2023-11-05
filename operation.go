@@ -221,7 +221,7 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 				o.Refresh()
 			}
 		case CharCtrlL:
-			platform.ClearScreen(o.t)
+			clearScreen(o.t)
 			o.buf.SetOffset(cursorPosition{1, 1})
 			o.Refresh()
 		case MetaBackspace, CharCtrlW:
@@ -546,8 +546,4 @@ func (o *operation) refresh() {
 	if o.isPrompting {
 		o.buf.Refresh(nil)
 	}
-}
-
-func (o *operation) Clean() {
-	o.buf.Clean()
 }
