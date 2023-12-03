@@ -37,7 +37,7 @@ func (p *PrefixCompleter) Tree(prefix string) string {
 	return buf.String()
 }
 
-func Print(p PrefixCompleterInterface, prefix string, level int, buf *bytes.Buffer) {
+func prefixPrint(p PrefixCompleterInterface, prefix string, level int, buf *bytes.Buffer) {
 	if strings.TrimSpace(string(p.GetName())) != "" {
 		buf.WriteString(prefix)
 		if level > 0 {
@@ -54,7 +54,7 @@ func Print(p PrefixCompleterInterface, prefix string, level int, buf *bytes.Buff
 }
 
 func (p *PrefixCompleter) Print(prefix string, level int, buf *bytes.Buffer) {
-	Print(p, prefix, level, buf)
+	prefixPrint(p, prefix, level, buf)
 }
 
 func (p *PrefixCompleter) IsDynamic() bool {
@@ -103,10 +103,6 @@ func PcItemDynamic(callback DynamicCompleteFunc, pc ...PrefixCompleterInterface)
 }
 
 func (p *PrefixCompleter) Do(line []rune, pos int) (newLine [][]rune, offset int) {
-	return doInternal(p, line, pos, line)
-}
-
-func Do(p PrefixCompleterInterface, line []rune, pos int) (newLine [][]rune, offset int) {
 	return doInternal(p, line, pos, line)
 }
 
