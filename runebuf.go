@@ -545,11 +545,11 @@ func (r *runeBuffer) output() []byte {
 	if r.isInLineEdge() {
 		buf.WriteString(" \b")
 	}
+	buf.WriteString("\x1b[0K") // VT100 "Clear line from cursor right", see #38
 	// cursor position
 	if len(r.buf) > r.idx {
 		buf.Write(r.getBackspaceSequence())
 	}
-	buf.WriteString("\x1b[0K") // VT100 "Clear line from cursor right", see #38
 	return buf.Bytes()
 }
 
