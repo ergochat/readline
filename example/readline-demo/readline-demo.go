@@ -167,6 +167,14 @@ func main() {
 					log.Println(line)
 				}
 			}()
+		case strings.HasPrefix(line, "echo "):
+			preArg := strings.TrimSpace(strings.TrimPrefix(line, "echo "))
+			arg := strings.TrimPrefix(preArg, "-n ")
+			out := []byte(arg)
+			if preArg == arg {
+				out = append(out, '\n')
+			}
+			l.Write(out)
 		case line == "bye":
 			goto exit
 		case line == "sleep":
