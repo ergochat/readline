@@ -523,6 +523,7 @@ func (r *runeBuffer) print() {
 func (r *runeBuffer) output() []byte {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteString(r.prompt())
+	buf.WriteString("\x1b[0K") // VT100 "Clear line from cursor right", see #38
 	cfg := r.getConfig()
 	if cfg.EnableMask && len(r.buf) > 0 {
 		if cfg.MaskRune != 0 {
@@ -545,7 +546,6 @@ func (r *runeBuffer) output() []byte {
 	if r.isInLineEdge() {
 		buf.WriteString(" \b")
 	}
-	buf.WriteString("\x1b[0K") // VT100 "Clear line from cursor right", see #38
 	// cursor position
 	if len(r.buf) > r.idx {
 		buf.Write(r.getBackspaceSequence())
