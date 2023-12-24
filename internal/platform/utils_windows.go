@@ -4,6 +4,8 @@ package platform
 
 import (
 	"syscall"
+
+	"github.com/ergochat/readline/internal/term"
 )
 
 const (
@@ -19,17 +21,16 @@ func GetStdin() int {
 
 // GetScreenSize returns the width, height of the terminal or -1,-1
 func GetScreenSize() (width int, height int) {
-	info, _ := GetConsoleScreenBufferInfo()
-	if info == nil {
-		return -1, -1
+	width, height, err := term.GetSize(int(syscall.Stdout))
+	if err == nil {
+		return width, height
+	} else {
+		return 0, 0
 	}
-	height = int(info.srWindow.bottom) - int(info.srWindow.top) + 1
-	width = int(info.srWindow.right) - int(info.srWindow.left) + 1
-	return
 }
 
 func DefaultIsTerminal() bool {
-	return true
+	return term.IsTerminal(int(syscall.Stdin)) && term.IsTerminal(int(syscall.Stdout))
 }
 
 func DefaultOnWidthChanged(f func()) {
@@ -37,5 +38,5 @@ func DefaultOnWidthChanged(f func()) {
 }
 
 func DefaultOnSizeChanged(f func()) {
-
+	// TODO: does Windows have a SIGWINCH analogue?
 }
