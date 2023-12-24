@@ -17,7 +17,7 @@ type opUndo struct {
 
 func newOpUndo(op *operation) *opUndo {
 	o := &opUndo{op: op}
-	o.stack.Initialize(32, 32)
+	o.stack.Initialize(32, 64)
 	o.init()
 	return o
 }
