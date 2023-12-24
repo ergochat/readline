@@ -22,9 +22,6 @@ type runeBuffer struct {
 
 	lastKill []rune
 
-	lastChangeIdx int
-	OnChange      func(pos int, buf []rune)
-
 	sync.Mutex
 }
 
@@ -452,24 +449,11 @@ func (r *runeBuffer) refresh(f func()) {
 		return
 	}
 
-	prevIdx := r.idx
-	prevBuf := append([]rune{}, r.buf...)
-
 	r.clean()
 	if f != nil {
 		f()
 	}
 	r.print()
-
-	if r.OnChange != nil {
-		if !runes.Equal(r.buf, prevBuf) {
-			if prevIdx != r.lastChangeIdx+1 {
-				r.OnChange(prevIdx, prevBuf)
-			}
-
-			r.lastChangeIdx = prevIdx
-		}
-	}
 }
 
 func (r *runeBuffer) SetOffset(position cursorPosition) {
@@ -605,6 +589,19 @@ func (r *runeBuffer) getBackspaceSequence() []byte {
 	fmt.Fprintf(buf, "\033[%dG", column) // move cursor to column
 
 	return buf.Bytes()
+}
+
+func (r *runeBuffer) CopyForUndo(prev []rune) (cur []rune, idx int, changed bool) {
+	if runes.Equal(r.buf, prev) {
+		return prev, r.idx, false
+	} else {
+		return runes.Copy(r.buf), r.idx, true
+	}
+}
+
+func (r *runeBuffer) Restore(buf []rune, idx int) {
+	r.buf = buf
+	r.idx = idx
 }
 
 func (r *runeBuffer) Reset() []rune {

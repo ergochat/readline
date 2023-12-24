@@ -55,6 +55,9 @@ type Config struct {
 	EnableMask bool
 	MaskRune   rune
 
+	// Whether to maintain an undo buffer (Ctrl+_ to undo if enabled)
+	Undo bool
+
 	// erase the editing line after user submited it
 	// it use in IM usually.
 	UniqueEditLine bool

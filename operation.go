@@ -93,6 +93,8 @@ func (o *operation) GetConfig() *Config {
 }
 
 func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
+	isTyping := false // don't add new undo entries during normal typing
+
 	for {
 		keepInSearchMode := false
 		keepInCompleteMode := false
@@ -164,6 +166,8 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 
 		var result []rune
 
+		isTypingRune := false
+
 		switch r {
 		case CharBell:
 			if o.search.IsSearchMode() {
@@ -181,6 +185,7 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 			}
 			keepInSearchMode = true
 		case CharCtrlU:
+			o.undo.add()
 			o.buf.KillFront()
 		case CharFwdSearch:
 			if !o.search.SearchMode(searchDirectionForward) {
@@ -189,21 +194,25 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 			}
 			keepInSearchMode = true
 		case CharKill:
+			o.undo.add()
 			o.buf.Kill()
 			keepInCompleteMode = true
 		case MetaForward:
 			o.buf.MoveToNextWord()
 		case CharTranspose:
+			o.undo.add()
 			o.buf.Transpose()
 		case MetaBackward:
 			o.buf.MoveToPrevWord()
 		case MetaDelete:
+			o.undo.add()
 			o.buf.DeleteWord()
 		case CharLineStart:
 			o.buf.MoveToLineStart()
 		case CharLineEnd:
 			o.buf.MoveToLineEnd()
 		case CharBackspace, CharCtrlH:
+			o.undo.add()
 			if o.search.IsSearchMode() {
 				o.search.SearchBackspace()
 				keepInSearchMode = true
@@ -226,6 +235,7 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 			o.buf.SetOffset(cursorPosition{1, 1})
 			o.Refresh()
 		case MetaBackspace, CharCtrlW:
+			o.undo.add()
 			o.buf.BackEscapeWord()
 		case MetaShiftTab:
 			// no-op
@@ -280,6 +290,7 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 				o.t.Bell()
 			}
 		case MetaDeleteKey, CharEOT:
+			o.undo.add()
 			// on Delete key or Ctrl-D, attempt to delete a character:
 			if o.buf.Len() > 0 || !o.IsNormalMode() {
 				if !o.buf.Delete() {
@@ -339,6 +350,10 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 			} // else: process as a normal input character
 			fallthrough
 		default:
+			isTypingRune = true
+			if !isTyping {
+				o.undo.add()
+			}
 			if o.search.IsSearchMode() {
 				o.search.SearchChar(r)
 				keepInSearchMode = true
@@ -354,6 +369,8 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 				}
 			}
 		}
+
+		isTyping = isTypingRune
 
 		// suppress the Listener callback if we received Enter or similar and are
 		// submitting the result, since the buffer has already been cleared:
@@ -410,7 +427,8 @@ func (o *operation) Runes() ([]rune, error) {
 	o.t.EnterRawMode()
 	defer o.t.ExitRawMode()
 
-	listener := o.GetConfig().Listener
+	cfg := o.GetConfig()
+	listener := cfg.Listener
 	if listener != nil {
 		listener(nil, 0, 0)
 	}
@@ -428,8 +446,9 @@ func (o *operation) Runes() ([]rune, error) {
 	// lock again to unset.
 	o.m.Unlock()
 
-	o.undo = newOpUndo(o)
-	o.buf.OnChange = o.undo.add
+	if cfg.Undo {
+		o.undo = newOpUndo(o)
+	}
 
 	defer func() {
 		o.m.Lock()

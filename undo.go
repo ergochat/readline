@@ -1,43 +1,68 @@
 package readline
 
+import (
+	"github.com/ergochat/readline/internal/ringbuf"
+)
+
 type undoEntry struct {
 	pos int
 	buf []rune
 }
 
+// nil receiver is a valid no-op object
 type opUndo struct {
 	op    *operation
-	stack []undoEntry
+	stack ringbuf.Buffer[undoEntry]
 }
 
 func newOpUndo(op *operation) *opUndo {
 	o := &opUndo{op: op}
+	o.stack.Initialize(32, 32)
 	o.init()
 	return o
 }
 
-func (o *opUndo) add(pos int, buf []rune) {
-	o.stack = append(o.stack, undoEntry{pos: pos, buf: buf})
-}
-
-func (o *opUndo) undo() {
-	if len(o.stack) == 0 {
+func (o *opUndo) add() {
+	if o == nil {
 		return
 	}
 
-	e := o.stack[len(o.stack)-1]
-	o.stack = o.stack[0 : len(o.stack)-1]
+	top, success := o.stack.Pop()
+	buf, pos, changed := o.op.buf.CopyForUndo(top.buf) // if !success, top.buf is nil
+	newEntry := undoEntry{pos: pos, buf: buf}
+	if !success {
+		o.stack.Add(newEntry)
+	} else if !changed {
+		o.stack.Add(newEntry) // update cursor position
+	} else {
+		o.stack.Add(top)
+		o.stack.Add(newEntry)
+	}
+}
 
-	o.op.buf.buf = e.buf
-	o.op.buf.idx = e.pos
+func (o *opUndo) undo() {
+	if o == nil {
+		return
+	}
+
+	top, success := o.stack.Pop()
+	if !success {
+		return
+	}
+	o.op.buf.Restore(top.buf, top.pos)
 	o.op.buf.Refresh(nil)
 }
 
 func (o *opUndo) init() {
-	o.stack = []undoEntry{
-		{
-			pos: o.op.buf.idx,
-			buf: append([]rune{}, o.op.buf.buf...),
-		},
+	if o == nil {
+		return
 	}
+
+	buf, pos, _ := o.op.buf.CopyForUndo(nil)
+	initialEntry := undoEntry{
+		pos: pos,
+		buf: buf,
+	}
+	o.stack.Clear()
+	o.stack.Add(initialEntry)
 }
