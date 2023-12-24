@@ -53,10 +53,6 @@ func DefaultIsTerminal() bool {
 	return term.IsTerminal(syscall.Stdin) && (term.IsTerminal(syscall.Stdout) || term.IsTerminal(syscall.Stderr))
 }
 
-func GetStdin() int {
-	return syscall.Stdin
-}
-
 // -----------------------------------------------------------------------------
 
 var (

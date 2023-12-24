@@ -15,10 +15,6 @@ const (
 func SuspendProcess() {
 }
 
-func GetStdin() int {
-	return int(syscall.Stdin)
-}
-
 // GetScreenSize returns the width, height of the terminal or -1,-1
 func GetScreenSize() (width int, height int) {
 	width, height, err := term.GetSize(int(syscall.Stdout))
