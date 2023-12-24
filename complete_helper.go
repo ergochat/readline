@@ -7,97 +7,91 @@ import (
 	"github.com/ergochat/readline/internal/runes"
 )
 
-// Caller type for dynamic completion
-type DynamicCompleteFunc func(string) []string
-
-type PrefixCompleterInterface interface {
-	Print(prefix string, level int, buf *bytes.Buffer)
-	Do(line []rune, pos int) (newLine [][]rune, length int)
-	GetName() []rune
-	GetChildren() []PrefixCompleterInterface
-	SetChildren(children []PrefixCompleterInterface)
-}
-
-type DynamicPrefixCompleterInterface interface {
-	PrefixCompleterInterface
-	IsDynamic() bool
-	GetDynamicNames(line []rune) [][]rune
-}
-
+// PrefixCompleter implements AutoCompleter via a recursive tree.
 type PrefixCompleter struct {
-	Name     []rune
-	Dynamic  bool
-	Callback DynamicCompleteFunc
-	Children []PrefixCompleterInterface
+	// Name is the name of a command, subcommand, or argument eligible for completion.
+	Name string
+	// Callback is optional; if defined, it takes the current line and returns
+	// a list of possible completions associated with the current node (i.e.
+	// in place of Name).
+	Callback func(string) []string
+	// Children is a list of possible completions that can follow the current node.
+	Children []*PrefixCompleter
+
+	nameRunes []rune // just a cache
 }
+
+var _ AutoCompleter = (*PrefixCompleter)(nil)
 
 func (p *PrefixCompleter) Tree(prefix string) string {
 	buf := bytes.NewBuffer(nil)
-	p.Print(prefix, 0, buf)
+	p.print(prefix, 0, buf)
 	return buf.String()
 }
 
-func prefixPrint(p PrefixCompleterInterface, prefix string, level int, buf *bytes.Buffer) {
-	if strings.TrimSpace(string(p.GetName())) != "" {
+func prefixPrint(p *PrefixCompleter, prefix string, level int, buf *bytes.Buffer) {
+	if strings.TrimSpace(p.Name) != "" {
 		buf.WriteString(prefix)
 		if level > 0 {
 			buf.WriteString("├")
 			buf.WriteString(strings.Repeat("─", (level*4)-2))
 			buf.WriteString(" ")
 		}
-		buf.WriteString(string(p.GetName()) + "\n")
+		buf.WriteString(p.Name)
+		buf.WriteByte('\n')
 		level++
 	}
-	for _, ch := range p.GetChildren() {
-		ch.Print(prefix, level, buf)
+	for _, ch := range p.Children {
+		ch.print(prefix, level, buf)
 	}
 }
 
-func (p *PrefixCompleter) Print(prefix string, level int, buf *bytes.Buffer) {
+func (p *PrefixCompleter) print(prefix string, level int, buf *bytes.Buffer) {
 	prefixPrint(p, prefix, level, buf)
 }
 
-func (p *PrefixCompleter) IsDynamic() bool {
-	return p.Dynamic
-}
-
-func (p *PrefixCompleter) GetName() []rune {
-	return p.Name
-}
-
-func (p *PrefixCompleter) GetDynamicNames(line []rune) [][]rune {
-	var names = [][]rune{}
-	for _, name := range p.Callback(string(line)) {
-		names = append(names, []rune(name+" "))
+func (p *PrefixCompleter) getName() []rune {
+	if p.nameRunes == nil {
+		if p.Name != "" {
+			p.nameRunes = []rune(p.Name)
+		} else {
+			p.nameRunes = make([]rune, 0)
+		}
 	}
-	return names
+	return p.nameRunes
 }
 
-func (p *PrefixCompleter) GetChildren() []PrefixCompleterInterface {
-	return p.Children
+func (p *PrefixCompleter) getDynamicNames(line []rune) [][]rune {
+	var result [][]rune
+	for _, name := range p.Callback(string(line)) {
+		nameRunes := []rune(name)
+		nameRunes = append(nameRunes, ' ')
+		result = append(result, nameRunes)
+	}
+	return result
 }
 
-func (p *PrefixCompleter) SetChildren(children []PrefixCompleterInterface) {
+func (p *PrefixCompleter) SetChildren(children []*PrefixCompleter) {
 	p.Children = children
 }
 
-func NewPrefixCompleter(pc ...PrefixCompleterInterface) *PrefixCompleter {
+func NewPrefixCompleter(pc ...*PrefixCompleter) *PrefixCompleter {
 	return PcItem("", pc...)
 }
 
-func PcItem(name string, pc ...PrefixCompleterInterface) *PrefixCompleter {
+func PcItem(name string, pc ...*PrefixCompleter) *PrefixCompleter {
 	name += " "
-	return &PrefixCompleter{
-		Name:     []rune(name),
-		Dynamic:  false,
+	result := &PrefixCompleter{
+		Name:     name,
 		Children: pc,
 	}
+	result.getName() // initialize nameRunes member
+	return result
 }
 
-func PcItemDynamic(callback DynamicCompleteFunc, pc ...PrefixCompleterInterface) *PrefixCompleter {
+func PcItemDynamic(callback func(string) []string, pc ...*PrefixCompleter) *PrefixCompleter {
 	return &PrefixCompleter{
 		Callback: callback,
-		Dynamic:  true,
 		Children: pc,
 	}
 }
@@ -106,18 +100,17 @@ func (p *PrefixCompleter) Do(line []rune, pos int) (newLine [][]rune, offset int
 	return doInternal(p, line, pos, line)
 }
 
-func doInternal(p PrefixCompleterInterface, line []rune, pos int, origLine []rune) (newLine [][]rune, offset int) {
+func doInternal(p *PrefixCompleter, line []rune, pos int, origLine []rune) (newLine [][]rune, offset int) {
 	line = runes.TrimSpaceLeft(line[:pos])
 	goNext := false
-	var lineCompleter PrefixCompleterInterface
-	for _, child := range p.GetChildren() {
-		childNames := make([][]rune, 1)
-
-		childDynamic, ok := child.(DynamicPrefixCompleterInterface)
-		if ok && childDynamic.IsDynamic() {
-			childNames = childDynamic.GetDynamicNames(origLine)
+	var lineCompleter *PrefixCompleter
+	for _, child := range p.Children {
+		var childNames [][]rune
+		if child.Callback != nil {
+			childNames = child.getDynamicNames(origLine)
 		} else {
-			childNames[0] = child.GetName()
+			childNames = make([][]rune, 1)
+			childNames[0] = child.getName()
 		}
 
 		for _, childName := range childNames {
