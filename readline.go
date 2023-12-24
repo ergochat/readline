@@ -58,10 +58,6 @@ type Config struct {
 	// Whether to maintain an undo buffer (Ctrl+_ to undo if enabled)
 	Undo bool
 
-	// erase the editing line after user submited it
-	// it use in IM usually.
-	UniqueEditLine bool
-
 	// filter input runes (may be used to disable CtrlZ or for translating some keys to different actions)
 	// -> output = new (translated) rune and true/false if continue with processing this one
 	FuncFilterInputRune func(rune) (rune, bool)

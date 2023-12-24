@@ -253,14 +253,9 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 			}
 			o.buf.MoveToLineEnd()
 			var data []rune
-			if !o.GetConfig().UniqueEditLine {
-				o.buf.WriteRune('\n')
-				data = o.buf.Reset()
-				data = data[:len(data)-1] // trim \n
-			} else {
-				o.buf.Clean()
-				data = o.buf.Reset()
-			}
+			o.buf.WriteRune('\n')
+			data = o.buf.Reset()
+			data = data[:len(data)-1] // trim \n
 			result = data
 			if !o.GetConfig().DisableAutoSaveHistory {
 				// ignore IO error
@@ -302,15 +297,11 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 				break
 			}
 			// Ctrl-D on an empty buffer: treated as EOF
-			if !o.GetConfig().UniqueEditLine {
-				o.buf.WriteString(o.GetConfig().EOFPrompt + "\n")
-			}
+			o.buf.WriteString(o.GetConfig().EOFPrompt + "\n")
 			o.buf.Reset()
 			isUpdateHistory = false
 			o.history.Revert()
-			if o.GetConfig().UniqueEditLine {
-				o.buf.Clean()
-			}
+			o.buf.Clean()
 			return nil, io.EOF
 		case CharInterrupt:
 			if o.search.IsSearchMode() {
@@ -325,13 +316,9 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 			o.buf.MoveToLineEnd()
 			o.buf.Refresh(nil)
 			hint := o.GetConfig().InterruptPrompt + "\n"
-			if !o.GetConfig().UniqueEditLine {
-				o.buf.WriteString(hint)
-			}
+			o.buf.WriteString(hint)
 			remain := o.buf.Reset()
-			if !o.GetConfig().UniqueEditLine {
-				remain = remain[:len(remain)-len([]rune(hint))]
-			}
+			remain = remain[:len(remain)-len([]rune(hint))]
 			isUpdateHistory = false
 			o.history.Revert()
 			return nil, ErrInterrupt
