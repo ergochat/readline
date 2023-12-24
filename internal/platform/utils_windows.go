@@ -17,15 +17,6 @@ func GetStdin() int {
 	return int(syscall.Stdin)
 }
 
-// get width of the terminal
-func GetScreenWidth() int {
-	info, _ := GetConsoleScreenBufferInfo()
-	if info == nil {
-		return -1
-	}
-	return int(info.dwSize.x)
-}
-
 // GetScreenSize returns the width, height of the terminal or -1,-1
 func GetScreenSize() (width int, height int) {
 	info, _ := GetConsoleScreenBufferInfo()

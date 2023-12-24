@@ -38,23 +38,6 @@ func SuspendProcess() {
 	<-ctx.Done()
 }
 
-// get width of the terminal
-func getWidth(stdoutFd int) int {
-	cols, _, err := term.GetSize(stdoutFd)
-	if err != nil {
-		return -1
-	}
-	return cols
-}
-
-func GetScreenWidth() int {
-	w := getWidth(syscall.Stdout)
-	if w < 0 {
-		w = getWidth(syscall.Stderr)
-	}
-	return w
-}
-
 // getWidthHeight of the terminal using given file descriptor
 func getWidthHeight(stdoutFd int) (width int, height int) {
 	width, height, err := term.GetSize(stdoutFd)

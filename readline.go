@@ -44,7 +44,6 @@ type Config struct {
 	InterruptPrompt string
 	EOFPrompt       string
 
-	FuncGetWidth func() int
 	// Function that returns width, height of the terminal or -1,-1 if unknown
 	FuncGetSize func() (width int, height int)
 
@@ -104,9 +103,6 @@ func (c *Config) init() error {
 		c.EOFPrompt = ""
 	}
 
-	if c.FuncGetWidth == nil {
-		c.FuncGetWidth = platform.GetScreenWidth
-	}
 	if c.FuncGetSize == nil {
 		c.FuncGetSize = platform.GetScreenSize
 	}
