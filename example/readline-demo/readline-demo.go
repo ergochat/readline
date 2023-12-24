@@ -92,6 +92,8 @@ func main() {
 
 		HistorySearchFold:   true,
 		FuncFilterInputRune: filterInput,
+
+		Undo: true,
 	})
 	if err != nil {
 		panic(err)

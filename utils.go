@@ -35,6 +35,7 @@ const (
 	CharCtrlY     = 25
 	CharCtrlZ     = 26
 	CharEsc       = 27
+	CharCtrl_     = 31
 	CharO         = 79
 	CharEscapeEx  = 91
 	CharBackspace = 127
@@ -86,14 +87,15 @@ func clearScreen(w io.Writer) error {
 func debugList(l *list.List) {
 	idx := 0
 	for e := l.Front(); e != nil; e = e.Next() {
-		debugPrint(idx, fmt.Sprintf("%+v", e.Value))
+		debugPrint("%d %+v", idx, e.Value)
 		idx++
 	}
 }
 
 // append log info to another file
-func debugPrint(o ...interface{}) {
-	f, _ := os.OpenFile("debug.tmp", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	fmt.Fprintln(f, o...)
+func debugPrint(fmtStr string, o ...interface{}) {
+	f, _ := os.OpenFile("debug.tmp", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+	fmt.Fprintf(f, fmtStr, o...)
+	fmt.Fprintln(f)
 	f.Close()
 }

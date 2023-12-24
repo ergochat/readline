@@ -591,6 +591,19 @@ func (r *runeBuffer) getBackspaceSequence() []byte {
 	return buf.Bytes()
 }
 
+func (r *runeBuffer) CopyForUndo(prev []rune) (cur []rune, idx int, changed bool) {
+	if runes.Equal(r.buf, prev) {
+		return prev, r.idx, false
+	} else {
+		return runes.Copy(r.buf), r.idx, true
+	}
+}
+
+func (r *runeBuffer) Restore(buf []rune, idx int) {
+	r.buf = buf
+	r.idx = idx
+}
+
 func (r *runeBuffer) Reset() []rune {
 	ret := runes.Copy(r.buf)
 	r.buf = r.buf[:0]
