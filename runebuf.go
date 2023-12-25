@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ergochat/readline/internal/platform"
 	"github.com/ergochat/readline/internal/runes"
 )
 
@@ -393,9 +392,6 @@ func (r *runeBuffer) MoveTo(ch rune, prevChar, reverse bool) (success bool) {
 }
 
 func (r *runeBuffer) isInLineEdge() bool {
-	if platform.IsWindows {
-		return false
-	}
 	sp := r.getSplitByLine(r.buf, 1)
 	return len(sp[len(sp)-1]) == 0 // last line is 0 len
 }
