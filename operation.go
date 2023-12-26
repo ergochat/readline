@@ -457,9 +457,7 @@ func (o *operation) getAndSetOffset(deadline chan struct{}) {
 	// the screen but the next character would actually be printed
 	// at the beginning of the next line.
 	// TODO ???
-	if !platform.IsWindows {
-		o.t.Write([]byte(" \b"))
-	}
+	o.t.Write([]byte(" \b"))
 
 	if offset, err := o.t.GetCursorPosition(deadline); err == nil {
 		o.buf.SetOffset(offset)
