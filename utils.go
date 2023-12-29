@@ -6,8 +6,8 @@ import (
 	"io"
 	"os"
 	"sync"
+	"syscall"
 
-	"github.com/ergochat/readline/internal/platform"
 	"github.com/ergochat/readline/internal/term"
 )
 
@@ -59,7 +59,7 @@ type rawModeHandler struct {
 func (r *rawModeHandler) Enter() (err error) {
 	r.Lock()
 	defer r.Unlock()
-	r.state, err = term.MakeRaw(platform.GetStdin())
+	r.state, err = term.MakeRaw(int(syscall.Stdin))
 	return err
 }
 
@@ -69,7 +69,7 @@ func (r *rawModeHandler) Exit() error {
 	if r.state == nil {
 		return nil
 	}
-	err := term.Restore(platform.GetStdin(), r.state)
+	err := term.Restore(int(syscall.Stdin), r.state)
 	if err == nil {
 		r.state = nil
 	}

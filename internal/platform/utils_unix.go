@@ -16,13 +16,6 @@ const (
 	IsWindows = false
 )
 
-type winsize struct {
-	Row    uint16
-	Col    uint16
-	Xpixel uint16
-	Ypixel uint16
-}
-
 // SuspendProcess suspends the process with SIGTSTP,
 // then blocks until it is resumed.
 func SuspendProcess() {
@@ -58,10 +51,6 @@ func GetScreenSize() (width int, height int) {
 
 func DefaultIsTerminal() bool {
 	return term.IsTerminal(syscall.Stdin) && (term.IsTerminal(syscall.Stdout) || term.IsTerminal(syscall.Stderr))
-}
-
-func GetStdin() int {
-	return syscall.Stdin
 }
 
 // -----------------------------------------------------------------------------
