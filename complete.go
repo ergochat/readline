@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"sync/atomic"
 
 	"github.com/ergochat/readline/internal/platform"
 	"github.com/ergochat/readline/internal/runes"
@@ -24,7 +25,7 @@ type opCompleter struct {
 	w  *terminal
 	op *operation
 
-	inCompleteMode bool
+	inCompleteMode atomic.Uint32 // this is read asynchronously from wrapWriter
 	inSelectMode   bool
 	inPagerMode    bool
 
@@ -134,7 +135,7 @@ func (o *opCompleter) IsInCompleteSelectMode() bool {
 }
 
 func (o *opCompleter) IsInCompleteMode() bool {
-	return o.inCompleteMode
+	return o.inCompleteMode.Load() == 1
 }
 
 func (o *opCompleter) IsInPagerMode() bool {
@@ -302,7 +303,7 @@ func (o *opCompleter) needPagerMode() bool {
 
 // CompleteRefresh is used for completemode and selectmode
 func (o *opCompleter) CompleteRefresh() {
-	if !o.inCompleteMode {
+	if !o.IsInCompleteMode() {
 		return
 	}
 
@@ -464,7 +465,7 @@ func (o *opCompleter) EnterCompleteSelectMode() {
 }
 
 func (o *opCompleter) EnterCompleteMode(offset int, candidate [][]rune) {
-	o.inCompleteMode = true
+	o.inCompleteMode.Store(1)
 	o.candidate = candidate
 	o.candidateOff = offset
 	o.setColumnInfo()
@@ -487,7 +488,7 @@ func (o *opCompleter) ExitCompleteSelectMode() {
 }
 
 func (o *opCompleter) ExitCompleteMode(revent bool) {
-	o.inCompleteMode = false
+	o.inCompleteMode.Store(0)
 	o.candidate = nil
 	o.candidateOff = -1
 	o.candidateSource = nil
