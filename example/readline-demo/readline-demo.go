@@ -82,8 +82,19 @@ func asyncSleep(instance *readline.Instance, min, max time.Duration) {
 	}
 }
 
+func asyncClose(instance *readline.Instance, line string) {
+	duration := 3 * time.Second
+	if fields := strings.Fields(line); len(fields) >= 2 {
+		if dur, err := time.ParseDuration(fields[1]); err == nil {
+			duration = dur
+		}
+	}
+	time.Sleep(duration)
+	instance.Close()
+}
+
 func main() {
-	l, err := readline.NewEx(&readline.Config{
+	l, err := readline.NewFromConfig(&readline.Config{
 		Prompt:          "\033[31m»\033[0m ",
 		HistoryFile:     "/tmp/readline.tmp",
 		AutoComplete:    completer,
@@ -192,6 +203,8 @@ func main() {
 			}
 		case line == "clear":
 			l.ClearScreen()
+		case strings.HasPrefix(line, "close"):
+			go asyncClose(l, line)
 		case line == "":
 		default:
 			log.Println("you said:", strconv.Quote(line))
