@@ -21,7 +21,7 @@
 
 No public API changes.
 
-# [v0.0.4] -- 2023-06-02
+## [v0.0.4] -- 2023-06-02
 
 * Fixed panic on Ctrl-S followed by Ctrl-C (#32)
 * Fixed data races around history search (#29)
@@ -29,14 +29,14 @@ No public API changes.
 * `Listener` and `Painter` are now function types instead of interfaces (#29)
 * Cleanups and renames for some relatively obscure APIs (#28, #29)
 
-# [v0.0.3] -- 2023-04-17
+## [v0.0.3] -- 2023-04-17
 
 * Added `(*Instance).SetDefault` to replace `FillStdin` and `WriteStdin` (#24)
 * Fixed Delete key on an empty line causing the prompt to exit (#14)
 * Fixed double draw of prompt on `ReadlineWithDefault` (#24)
 * Hide `Operation`, `Terminal`, `RuneBuffer`, and others from the public API (#18)
 
-# [v0.0.2] -- 2023-03-27
+## [v0.0.2] -- 2023-03-27
 
 * Fixed overwriting existing text on the same line as the prompt (d9af5677814a)
 * Fixed wide character handling, including emoji (d9af5677814a)
@@ -50,6 +50,6 @@ No public API changes.
 * Added zos support (#10)
 * Cleanups and renames for many relatively obscure APIs (#3, #9)
 
-# [v0.0.1]
+## [v0.0.1]
 
 v0.0.1 is the upstream repository [chzyer/readline](https://github.com/chzyer/readline/)'s final public release [v1.5.1](https://github.com/chzyer/readline/releases/tag/v1.5.1).
