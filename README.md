@@ -12,3 +12,36 @@ It is a fork of [chzyer/readline](https://github.com/chzyer/readline).
    - See our [migration guide](docs/MIGRATING.md) for advice on how to migrate from upstream
 * Relative to [x/term](https://pkg.go.dev/golang.org/x/term), it has more features (e.g. tab-completion)
 * In use by multiple projects: [gopass](https://github.com/gopasspw/gopass), [fq](https://github.com/wader/fq), and [ircdog](https://github.com/ergochat/ircdog)
+
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/ergochat/readline"
+)
+
+func main() {
+	// see readline.NewFromConfig for advanced options:
+	rl, err := readline.New("> ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rl.Close()
+	log.SetOutput(rl.Stderr()) // redraw the prompt correctly after log output
+
+	for {
+		line, err := rl.ReadLine()
+		// `err` is either nil, io.EOF, readline.ErrInterrupt, or an unexpected
+		// condition in stdin:
+		if err != nil {
+			return
+		}
+		// `line` is returned without the terminating \n or CRLF:
+		fmt.Fprintf(rl, "you wrote: %s\n", line)
+	}
+}
+```
