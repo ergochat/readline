@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.0] - 2023-01-14
+## [0.1.0] - 2024-01-14
 
 * Added optional undo support with Ctrl+_ ; this must be enabled manually by setting `(Config).Undo` to `true`
 * Removed `PrefixCompleterInterface` in favor of the concrete type `*PrefixCompleter` (most client code that explicitly uses `PrefixCompleterInterface` can simply substitute `*PrefixCompleter`)
