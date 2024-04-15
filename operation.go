@@ -115,9 +115,9 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 				return nil, io.EOF
 			} else {
 				// if stdin got io.EOF and there is something left in buffer,
-				// let's flush them by sending CharEnter.
+				// let's flush them by sending charEnter.
 				// And we will got io.EOF int next loop.
-				r = CharEnter
+				r = charEnter
 			}
 		} else if err != nil {
 			return nil, err
@@ -140,12 +140,12 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 
 			o.buf.Refresh(nil)
 			switch r {
-			case CharEnter, CharCtrlJ:
+			case charEnter, charCtrlJ:
 				o.history.Update(o.buf.Runes(), false)
 				fallthrough
-			case CharInterrupt:
+			case charInterrupt:
 				fallthrough
-			case CharBell:
+			case charBell:
 				continue
 			}
 		}
@@ -169,7 +169,7 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 		isTypingRune := false
 
 		switch r {
-		case CharBell:
+		case charBell:
 			if o.search.IsSearchMode() {
 				o.search.ExitSearchMode(true)
 				o.buf.Refresh(nil)
@@ -178,28 +178,28 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 				o.completer.ExitCompleteMode(true)
 				o.buf.Refresh(nil)
 			}
-		case CharBckSearch:
+		case charBckSearch:
 			if !o.search.SearchMode(searchDirectionBackward) {
 				o.t.Bell()
 				break
 			}
 			keepInSearchMode = true
-		case CharCtrlU:
+		case charCtrlU:
 			o.undo.add()
 			o.buf.KillFront()
-		case CharFwdSearch:
+		case charFwdSearch:
 			if !o.search.SearchMode(searchDirectionForward) {
 				o.t.Bell()
 				break
 			}
 			keepInSearchMode = true
-		case CharKill:
+		case charKill:
 			o.undo.add()
 			o.buf.Kill()
 			keepInCompleteMode = true
 		case metaForward:
 			o.buf.MoveToNextWord()
-		case CharTranspose:
+		case charTranspose:
 			o.undo.add()
 			o.buf.Transpose()
 		case metaBackward:
@@ -207,11 +207,11 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 		case metaDelete:
 			o.undo.add()
 			o.buf.DeleteWord()
-		case CharLineStart:
+		case charLineStart:
 			o.buf.MoveToLineStart()
-		case CharLineEnd:
+		case charLineEnd:
 			o.buf.MoveToLineEnd()
-		case CharBackspace, CharCtrlH:
+		case charBackspace, charCtrlH:
 			o.undo.add()
 			if o.search.IsSearchMode() {
 				o.search.SearchBackspace()
@@ -224,26 +224,26 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 				break
 			}
 			o.buf.Backspace()
-		case CharCtrlZ:
+		case charCtrlZ:
 			if !platform.IsWindows {
 				o.buf.Clean()
 				o.t.SleepToResume()
 				o.Refresh()
 			}
-		case CharCtrlL:
+		case charCtrlL:
 			clearScreen(o.t)
 			o.buf.SetOffset(cursorPosition{1, 1})
 			o.Refresh()
-		case metaBackspace, CharCtrlW:
+		case metaBackspace, charCtrlW:
 			o.undo.add()
 			o.buf.BackEscapeWord()
 		case metaShiftTab:
 			// no-op
-		case CharCtrlY:
+		case charCtrlY:
 			o.buf.Yank()
-		case CharCtrl_:
+		case charCtrl_:
 			o.undo.undo()
-		case CharEnter, CharCtrlJ:
+		case charEnter, charCtrlJ:
 			if o.search.IsSearchMode() {
 				o.search.ExitSearchMode(false)
 			}
@@ -264,11 +264,11 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 				isUpdateHistory = false
 			}
 			o.undo.init()
-		case CharBackward:
+		case charBackward:
 			o.buf.MoveBackward()
-		case CharForward:
+		case charForward:
 			o.buf.MoveForward()
-		case CharPrev:
+		case charPrev:
 			buf := o.history.Prev()
 			if buf != nil {
 				o.buf.Set(buf)
@@ -276,7 +276,7 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 			} else {
 				o.t.Bell()
 			}
-		case CharNext:
+		case charNext:
 			buf, ok := o.history.Next()
 			if ok {
 				o.buf.Set(buf)
@@ -284,7 +284,7 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 			} else {
 				o.t.Bell()
 			}
-		case metaDeleteKey, CharEOT:
+		case metaDeleteKey, charEOT:
 			o.undo.add()
 			// on Delete key or Ctrl-D, attempt to delete a character:
 			if o.buf.Len() > 0 || !o.IsNormalMode() {
@@ -293,7 +293,7 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 				}
 				break
 			}
-			if r != CharEOT {
+			if r != charEOT {
 				break
 			}
 			// Ctrl-D on an empty buffer: treated as EOF
@@ -303,7 +303,7 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 			o.history.Revert()
 			o.buf.Clean()
 			return nil, io.EOF
-		case CharInterrupt:
+		case charInterrupt:
 			if o.search.IsSearchMode() {
 				o.search.ExitSearchMode(true)
 				break
@@ -322,7 +322,7 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 			isUpdateHistory = false
 			o.history.Revert()
 			return nil, ErrInterrupt
-		case CharTab:
+		case charTab:
 			if o.GetConfig().AutoComplete != nil {
 				if o.completer.OnComplete() {
 					if o.completer.IsInCompleteMode() {

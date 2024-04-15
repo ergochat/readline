@@ -145,16 +145,16 @@ func (o *opCompleter) IsInPagerMode() bool {
 func (o *opCompleter) HandleCompleteSelect(r rune) (stayInMode bool) {
 	next := true
 	switch r {
-	case CharEnter, CharCtrlJ:
+	case charEnter, charCtrlJ:
 		next = false
 		o.op.buf.WriteRunes(o.candidate[o.candidateChoise])
 		o.ExitCompleteMode(false)
-	case CharLineStart:
+	case charLineStart:
 		if o.candidateColNum > 1 {
 			num := o.candidateChoise % o.candidateColNum
 			o.nextCandidate(-num)
 		}
-	case CharLineEnd:
+	case charLineEnd:
 		if o.candidateColNum > 1 {
 			num := o.candidateColNum - o.candidateChoise%o.candidateColNum - 1
 			o.candidateChoise += num
@@ -162,15 +162,15 @@ func (o *opCompleter) HandleCompleteSelect(r rune) (stayInMode bool) {
 				o.candidateChoise = len(o.candidate) - 1
 			}
 		}
-	case CharBackspace:
+	case charBackspace:
 		o.ExitCompleteSelectMode()
 		next = false
-	case CharTab, CharForward:
+	case charTab, charForward:
 		o.nextCandidate(1)
-	case CharBell, CharInterrupt:
+	case charBell, charInterrupt:
 		o.ExitCompleteMode(true)
 		next = false
-	case CharNext:
+	case charNext:
 		colNum := 1
 		if o.candidateColNum > 1 {
 			colNum = o.candidateColNum
@@ -183,9 +183,9 @@ func (o *opCompleter) HandleCompleteSelect(r rune) (stayInMode bool) {
 			tmpChoise -= o.getMatrixSize()
 		}
 		o.candidateChoise = tmpChoise
-	case CharBackward, metaShiftTab:
+	case charBackward, metaShiftTab:
 		o.nextCandidate(-1)
-	case CharPrev:
+	case charPrev:
 		colNum := 1
 		if o.candidateColNum > 1 {
 			colNum = o.candidateColNum
