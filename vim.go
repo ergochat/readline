@@ -1,9 +1,9 @@
 package readline
 
 const (
-	VIM_NORMAL = iota
-	VIM_INSERT
-	VIM_VISUAL
+	vim_NORMAL = iota
+	vim_INSERT
+	vim_VISUAL
 )
 
 type opVim struct {
@@ -14,7 +14,7 @@ type opVim struct {
 func newVimMode(op *operation) *opVim {
 	ov := &opVim{
 		op:      op,
-		vimMode: VIM_INSERT,
+		vimMode: vim_INSERT,
 	}
 	return ov
 }
@@ -119,7 +119,7 @@ func (o *opVim) handleVimNormalEnterInsert(r rune, readNext func() rune) (t rune
 func (o *opVim) HandleVimNormal(r rune, readNext func() rune) (t rune) {
 	switch r {
 	case CharEnter, CharInterrupt:
-		o.vimMode = VIM_INSERT // ???
+		o.vimMode = vim_INSERT // ???
 		return r
 	}
 
@@ -137,15 +137,15 @@ func (o *opVim) HandleVimNormal(r rune, readNext func() rune) (t rune) {
 }
 
 func (o *opVim) EnterVimInsertMode() {
-	o.vimMode = VIM_INSERT
+	o.vimMode = vim_INSERT
 }
 
 func (o *opVim) ExitVimInsertMode() {
-	o.vimMode = VIM_NORMAL
+	o.vimMode = vim_NORMAL
 }
 
 func (o *opVim) HandleVim(r rune, readNext func() rune) rune {
-	if o.vimMode == VIM_NORMAL {
+	if o.vimMode == vim_NORMAL {
 		return o.HandleVimNormal(r, readNext)
 	}
 	if r == CharEsc {
@@ -154,9 +154,9 @@ func (o *opVim) HandleVim(r rune, readNext func() rune) rune {
 	}
 
 	switch o.vimMode {
-	case VIM_INSERT:
+	case vim_INSERT:
 		return r
-	case VIM_VISUAL:
+	case vim_VISUAL:
 	}
 	return r
 }
