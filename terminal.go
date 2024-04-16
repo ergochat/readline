@@ -358,11 +358,11 @@ func (t *terminal) consumeANSIEscape(buf *bufio.Reader) (result readResult, err 
 		r = CharLineEnd
 	case '~':
 		if initial == '[' && data == "3" {
-			r = metaDeleteKey // this is the key typically labeled "Delete"
+			r = MetaDeleteKey // this is the key typically labeled "Delete"
 		}
 	case 'Z':
 		if initial == '[' {
-			r = metaShiftTab
+			r = MetaShiftTab
 		}
 	}
 

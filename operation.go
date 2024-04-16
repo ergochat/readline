@@ -197,14 +197,14 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 			o.undo.add()
 			o.buf.Kill()
 			keepInCompleteMode = true
-		case metaForward:
+		case MetaForward:
 			o.buf.MoveToNextWord()
 		case CharTranspose:
 			o.undo.add()
 			o.buf.Transpose()
-		case metaBackward:
+		case MetaBackward:
 			o.buf.MoveToPrevWord()
-		case metaDelete:
+		case MetaDelete:
 			o.undo.add()
 			o.buf.DeleteWord()
 		case CharLineStart:
@@ -234,10 +234,10 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 			clearScreen(o.t)
 			o.buf.SetOffset(cursorPosition{1, 1})
 			o.Refresh()
-		case metaBackspace, CharCtrlW:
+		case MetaBackspace, CharCtrlW:
 			o.undo.add()
 			o.buf.BackEscapeWord()
-		case metaShiftTab:
+		case MetaShiftTab:
 			// no-op
 		case CharCtrlY:
 			o.buf.Yank()
@@ -284,7 +284,7 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 			} else {
 				o.t.Bell()
 			}
-		case metaDeleteKey, CharEOT:
+		case MetaDeleteKey, CharEOT:
 			o.undo.add()
 			// on Delete key or Ctrl-D, attempt to delete a character:
 			if o.buf.Len() > 0 || !o.IsNormalMode() {

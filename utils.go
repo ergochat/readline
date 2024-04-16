@@ -42,13 +42,13 @@ const (
 )
 
 const (
-	metaBackward rune = -iota - 1
-	metaForward
-	metaDelete
-	metaBackspace
-	metaTranspose
-	metaShiftTab
-	metaDeleteKey
+	MetaBackward rune = -iota - 1
+	MetaForward
+	MetaDelete
+	MetaBackspace
+	MetaTranspose
+	MetaShiftTab
+	MetaDeleteKey
 )
 
 type rawModeHandler struct {
