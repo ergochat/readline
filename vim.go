@@ -28,13 +28,13 @@ func (o *opVim) handleVimNormalMovement(r rune, readNext func() rune) (t rune, h
 	handled = true
 	switch r {
 	case 'h':
-		t = charBackward
+		t = CharBackward
 	case 'j':
-		t = charNext
+		t = CharNext
 	case 'k':
-		t = charPrev
+		t = CharPrev
 	case 'l':
-		t = charForward
+		t = CharForward
 	case '0', '^':
 		rb.MoveToLineStart()
 	case '$':
@@ -71,7 +71,7 @@ func (o *opVim) handleVimNormalMovement(r rune, readNext func() rune) (t rune, h
 		prevChar := r == 't' || r == 'T'
 		reverse := r == 'F' || r == 'T'
 		switch next {
-		case charEsc:
+		case CharEsc:
 		default:
 			rb.MoveTo(next, prevChar, reverse)
 		}
@@ -118,7 +118,7 @@ func (o *opVim) handleVimNormalEnterInsert(r rune, readNext func() rune) (t rune
 
 func (o *opVim) HandleVimNormal(r rune, readNext func() rune) (t rune) {
 	switch r {
-	case charEnter, charInterrupt:
+	case CharEnter, CharInterrupt:
 		o.vimMode = vim_INSERT // ???
 		return r
 	}
@@ -148,7 +148,7 @@ func (o *opVim) HandleVim(r rune, readNext func() rune) rune {
 	if o.vimMode == vim_NORMAL {
 		return o.HandleVimNormal(r, readNext)
 	}
-	if r == charEsc {
+	if r == CharEsc {
 		o.ExitVimInsertMode()
 		return 0
 	}

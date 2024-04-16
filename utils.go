@@ -12,33 +12,33 @@ import (
 )
 
 const (
-	charLineStart = 1
-	charBackward  = 2
-	charInterrupt = 3
-	charEOT       = 4
-	charLineEnd   = 5
-	charForward   = 6
-	charBell      = 7
-	charCtrlH     = 8
-	charTab       = 9
-	charCtrlJ     = 10
-	charKill      = 11
-	charCtrlL     = 12
-	charEnter     = 13
-	charNext      = 14
-	charPrev      = 16
-	charBckSearch = 18
-	charFwdSearch = 19
-	charTranspose = 20
-	charCtrlU     = 21
-	charCtrlW     = 23
-	charCtrlY     = 25
-	charCtrlZ     = 26
-	charEsc       = 27
-	charCtrl_     = 31
-	charO         = 79
-	charEscapeEx  = 91
-	charBackspace = 127
+	CharLineStart = 1
+	CharBackward  = 2
+	CharInterrupt = 3
+	CharEOT       = 4
+	CharLineEnd   = 5
+	CharForward   = 6
+	CharBell      = 7
+	CharCtrlH     = 8
+	CharTab       = 9
+	CharCtrlJ     = 10
+	CharKill      = 11
+	CharCtrlL     = 12
+	CharEnter     = 13
+	CharNext      = 14
+	CharPrev      = 16
+	CharBckSearch = 18
+	CharFwdSearch = 19
+	CharTranspose = 20
+	CharCtrlU     = 21
+	CharCtrlW     = 23
+	CharCtrlY     = 25
+	CharCtrlZ     = 26
+	CharEsc       = 27
+	CharCtrl_     = 31
+	CharO         = 79
+	CharEscapeEx  = 91
+	CharBackspace = 127
 )
 
 const (

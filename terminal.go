@@ -345,17 +345,17 @@ func (t *terminal) consumeANSIEscape(buf *bufio.Reader) (result readResult, err 
 			}
 		}
 	case 'D':
-		r = charBackward
+		r = CharBackward
 	case 'C':
-		r = charForward
+		r = CharForward
 	case 'A':
-		r = charPrev
+		r = CharPrev
 	case 'B':
-		r = charNext
+		r = CharNext
 	case 'H':
-		r = charLineStart
+		r = CharLineStart
 	case 'F':
-		r = charLineEnd
+		r = CharLineEnd
 	case '~':
 		if initial == '[' && data == "3" {
 			r = metaDeleteKey // this is the key typically labeled "Delete"
@@ -384,7 +384,7 @@ func parseCPRResponse(payload string) (cursorPosition, error) {
 }
 
 func (t *terminal) Bell() {
-	t.Write([]byte{charBell})
+	t.Write([]byte{CharBell})
 }
 
 func (t *terminal) Close() error {
