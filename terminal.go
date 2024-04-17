@@ -357,8 +357,15 @@ func (t *terminal) consumeANSIEscape(buf *bufio.Reader) (result readResult, err 
 	case 'F':
 		r = CharLineEnd
 	case '~':
-		if initial == '[' && data == "3" {
-			r = MetaDeleteKey // this is the key typically labeled "Delete"
+		if initial == '[' {
+			switch data {
+			case "3":
+				r = MetaDeleteKey // this is the key typically labeled "Delete"
+			case "7":
+				r = CharLineStart // "Home" key
+			case "8":
+				r = CharLineEnd // "End" key
+			}
 		}
 	case 'Z':
 		if initial == '[' {
