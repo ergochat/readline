@@ -2,11 +2,11 @@ package readline
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -276,6 +276,7 @@ func (t *terminal) ioloop() {
 	defer t.Close()
 
 	buf := bufio.NewReader(t.GetConfig().Stdin)
+	var ansiBuf bytes.Buffer
 
 	for {
 		select {
@@ -293,7 +294,7 @@ func (t *terminal) ioloop() {
 		if r == '\x1b' {
 			// we're starting an ANSI escape sequence:
 			// keep reading until we reach the end of the sequence
-			result, err = t.consumeANSIEscape(buf)
+			result, err = t.consumeANSIEscape(buf, &ansiBuf)
 			if err != nil {
 				return
 			}
@@ -309,7 +310,8 @@ func (t *terminal) ioloop() {
 	}
 }
 
-func (t *terminal) consumeANSIEscape(buf *bufio.Reader) (result readResult, err error) {
+func (t *terminal) consumeANSIEscape(buf *bufio.Reader, ansiBuf *bytes.Buffer) (result readResult, err error) {
+	ansiBuf.Reset()
 	// initial character is either [ or O; if we got something else,
 	// treat the sequence as terminated and don't interpret it
 	initial, _, err := buf.ReadRune()
@@ -318,7 +320,6 @@ func (t *terminal) consumeANSIEscape(buf *bufio.Reader) (result readResult, err 
 	}
 
 	// data consists of ; and 0-9 , anything else terminates the sequence
-	var dataBuf strings.Builder
 	var type_ rune
 	for {
 		r, _, err := buf.ReadRune()
@@ -326,13 +327,12 @@ func (t *terminal) consumeANSIEscape(buf *bufio.Reader) (result readResult, err 
 			return result, err
 		}
 		if r == ';' || ('0' <= r && r <= '9') {
-			dataBuf.WriteRune(r)
+			ansiBuf.WriteRune(r)
 		} else {
 			type_ = r
 			break
 		}
 	}
-	data := dataBuf.String()
 
 	var r rune
 	switch type_ {
@@ -340,7 +340,7 @@ func (t *terminal) consumeANSIEscape(buf *bufio.Reader) (result readResult, err 
 		if initial == '[' {
 			// DSR CPR response; if we can't parse it, just ignore it
 			// (do not return an error here because that would stop ioloop())
-			if cpos, err := parseCPRResponse(data); err == nil {
+			if cpos, err := parseCPRResponse(ansiBuf.Bytes()); err == nil {
 				return readResult{r: 0, ok: false, pos: &cpos}, nil
 			}
 		}
@@ -357,8 +357,15 @@ func (t *terminal) consumeANSIEscape(buf *bufio.Reader) (result readResult, err 
 	case 'F':
 		r = CharLineEnd
 	case '~':
-		if initial == '[' && data == "3" {
-			r = MetaDeleteKey // this is the key typically labeled "Delete"
+		if initial == '[' {
+			switch string(ansiBuf.Bytes()) {
+			case "3":
+				r = MetaDeleteKey // this is the key typically labeled "Delete"
+			case "7":
+				r = CharLineStart // "Home" key
+			case "8":
+				r = CharLineEnd // "End" key
+			}
 		}
 	case 'Z':
 		if initial == '[' {
@@ -372,10 +379,10 @@ func (t *terminal) consumeANSIEscape(buf *bufio.Reader) (result readResult, err 
 	return // default: no interpretable rune value
 }
 
-func parseCPRResponse(payload string) (cursorPosition, error) {
-	if parts := strings.Split(payload, ";"); len(parts) == 2 {
-		if row, err := strconv.Atoi(parts[0]); err == nil {
-			if col, err := strconv.Atoi(parts[1]); err == nil {
+func parseCPRResponse(payload []byte) (cursorPosition, error) {
+	if semicolonIdx := bytes.IndexByte(payload, ';'); semicolonIdx != -1 {
+		if row, err := strconv.Atoi(string(payload[:semicolonIdx])); err == nil {
+			if col, err := strconv.Atoi(string(payload[semicolonIdx+1:])); err == nil {
 				return cursorPosition{row: row, col: col}, nil
 			}
 		}
