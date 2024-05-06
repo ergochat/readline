@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.1] - 2024-05-06
+
+* Fixed zos support (#55)
+* Added support for the Home and End keys (#53)
+* Removed some internal enums related to Vim mode from the public API (#57)
+
 ## [0.1.0] - 2024-01-14
 
 * Added optional undo support with Ctrl+_ ; this must be enabled manually by setting `(Config).Undo` to `true`
