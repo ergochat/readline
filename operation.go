@@ -100,7 +100,7 @@ func (o *operation) readline(deadline chan struct{}) ([]rune, error) {
 		keepInCompleteMode := false
 		r, err := o.t.GetRune(deadline)
 
-		if cfg := o.GetConfig(); cfg.FuncFilterInputRune != nil && err != nil {
+		if cfg := o.GetConfig(); cfg.FuncFilterInputRune != nil && err == nil {
 			var process bool
 			r, process = cfg.FuncFilterInputRune(r)
 			if !process {
