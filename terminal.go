@@ -315,8 +315,18 @@ func (t *terminal) consumeANSIEscape(buf *bufio.Reader, ansiBuf *bytes.Buffer) (
 	// initial character is either [ or O; if we got something else,
 	// treat the sequence as terminated and don't interpret it
 	initial, _, err := buf.ReadRune()
-	if err != nil || !(initial == '[' || initial == 'O') {
+	if err != nil {
 		return
+	}
+	switch initial {
+	case 'f':
+		return readResult{r: MetaForward, ok: true}, nil
+	case 'b':
+		return readResult{r: MetaBackward, ok: true}, nil
+	case '[', 'O':
+		// read the rest of the escape sequence below
+	default:
+		return // invalid, ignore
 	}
 
 	// data consists of ; and 0-9 , anything else terminates the sequence
