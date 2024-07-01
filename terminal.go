@@ -312,11 +312,28 @@ func (t *terminal) ioloop() {
 
 func (t *terminal) consumeANSIEscape(buf *bufio.Reader, ansiBuf *bytes.Buffer) (result readResult, err error) {
 	ansiBuf.Reset()
-	// initial character is either [ or O; if we got something else,
-	// treat the sequence as terminated and don't interpret it
 	initial, _, err := buf.ReadRune()
-	if err != nil || !(initial == '[' || initial == 'O') {
+	if err != nil {
 		return
+	}
+	// we already read one \x1b. this can indicate either the start of an ANSI
+	// escape sequence, or a keychord with Alt (e.g. Alt+f produces `\x1bf` in
+	// a typical xterm).
+	switch initial {
+	case 'f':
+		// Alt-f in xterm, or Option+RightArrow in iTerm2 with "Natural text editing"
+		return readResult{r: MetaForward, ok: true}, nil // Alt-f
+	case 'b':
+		// Alt-b in xterm, or Option+LeftArrow in iTerm2 with "Natural text editing"
+		return readResult{r: MetaBackward, ok: true}, nil // Alt-b
+	case '[', 'O':
+		// this is a real ANSI escape sequence, read the rest of the sequence below:
+	case '\x1b':
+		// Alt plus a real ANSI escape sequence. Handle this specially since
+		// right now the only cases we want to handle are the arrow keys:
+		return consumeAltSequence(buf)
+	default:
+		return // invalid, ignore
 	}
 
 	// data consists of ; and 0-9 , anything else terminates the sequence
@@ -377,6 +394,28 @@ func (t *terminal) consumeANSIEscape(buf *bufio.Reader, ansiBuf *bytes.Buffer) (
 		return readResult{r: r, ok: true}, nil
 	}
 	return // default: no interpretable rune value
+}
+
+func consumeAltSequence(buf *bufio.Reader) (result readResult, err error) {
+	initial, _, err := buf.ReadRune()
+	if err != nil {
+		return
+	}
+	if initial != '[' {
+		return
+	}
+	second, _, err := buf.ReadRune()
+	if err != nil {
+		return
+	}
+	switch second {
+	case 'D':
+		return readResult{r: MetaBackward, ok: true}, nil
+	case 'C':
+		return readResult{r: MetaForward, ok: true}, nil
+	default:
+		return
+	}
 }
 
 func parseCPRResponse(payload []byte) (cursorPosition, error) {
