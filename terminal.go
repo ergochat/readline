@@ -362,9 +362,17 @@ func (t *terminal) consumeANSIEscape(buf *bufio.Reader, ansiBuf *bytes.Buffer) (
 			}
 		}
 	case 'D':
-		r = CharBackward
+		if altModifierEnabled(ansiBuf.Bytes()) {
+			r = MetaBackward
+		} else {
+			r = CharBackward
+		}
 	case 'C':
-		r = CharForward
+		if altModifierEnabled(ansiBuf.Bytes()) {
+			r = MetaForward
+		} else {
+			r = CharForward
+		}
 	case 'A':
 		r = CharPrev
 	case 'B':
@@ -416,6 +424,18 @@ func consumeAltSequence(buf *bufio.Reader) (result readResult, err error) {
 	default:
 		return
 	}
+}
+
+func altModifierEnabled(payload []byte) bool {
+	// https://www.xfree86.org/current/ctlseqs.html ; modifier keycodes
+	// go after the semicolon, e.g. Alt-LeftArrow is `\x1b[1;3D` in VTE
+	// terminals, where 3 indicates Alt
+	if semicolonIdx := bytes.IndexByte(payload, ';'); semicolonIdx != -1 {
+		if string(payload[semicolonIdx+1:]) == "3" {
+			return true
+		}
+	}
+	return false
 }
 
 func parseCPRResponse(payload []byte) (cursorPosition, error) {
