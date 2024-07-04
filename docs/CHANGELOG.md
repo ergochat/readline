@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.2] - unreleased
+## [0.1.2] - 2024-07-04
 
 * Fixed skipping between words with Alt+{Left,Right} and Alt+{b,f} (#59, #63)
 * Fixed `FuncFilterInputRune` support (#61, thanks [@sohomdatta1](https://github.com/sohomdatta1)!)
