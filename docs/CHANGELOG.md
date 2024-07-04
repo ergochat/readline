@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.2] - unreleased
+
+* Fixed skipping between words with Alt+{Left,Right} and Alt+{b,f} (#59, #63)
+* Fixed `FuncFilterInputRune` support (#61, thanks [@sohomdatta1](https://github.com/sohomdatta1)!)
+
 ## [0.1.1] - 2024-05-06
 
 * Fixed zos support (#55)
