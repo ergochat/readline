@@ -27,14 +27,16 @@ type opCompleter struct {
 
 	inCompleteMode atomic.Uint32 // this is read asynchronously from wrapWriter
 	inSelectMode   bool
-	inPagerMode    bool
 
-	candidate         [][]rune // list of candidates
-	candidateSource   []rune   // buffer string when tab was pressed
-	candidateOff      int      // num runes in common from buf where candidate start
-	candidateChoise   int      // candidate chosen (-1 for nothing yet) also used for paging
-	candidateColNum   int      // num columns candidates take 0..wraps, 1 col, 2 cols etc.
-	candidateColWidth int      // width of candidate columns
+	candidate          [][]rune // list of candidates
+	candidateSource    []rune   // buffer string when tab was pressed
+	candidateOff       int      // num runes in common from buf where candidate start
+	candidateChoise    int      // candidate chosen (-1 for nothing yet) also used for paging
+	candidateColNum    int      // num columns candidates take 0..wraps, 1 col, 2 cols etc.
+	candidateColWidth  int      // width of candidate columns
+	linesAvail         int      // number of lines below the user's prompt which could be used for rendering the completion
+	candidatePageStart []int    // idx of the candidate starting at each page, lazily computed when user navigates to new page
+	curPage            int      // current page
 }
 
 func newOpCompleter(w *terminal, op *operation) *opCompleter {
@@ -54,11 +56,99 @@ func (o *opCompleter) doSelect() {
 	o.CompleteRefresh()
 }
 
+func (o *opCompleter) candidateChoiseWithinPage() int {
+	return o.candidateChoise - o.candidatePageStart[o.curPage]
+}
+
+func (o *opCompleter) updateAbsoluteChoise(choiseWithinPage int) {
+	o.candidateChoise = choiseWithinPage + o.candidatePageStart[o.curPage]
+}
+
 func (o *opCompleter) nextCandidate(i int) {
-	o.candidateChoise += i
-	o.candidateChoise = o.candidateChoise % len(o.candidate)
-	if o.candidateChoise < 0 {
-		o.candidateChoise = len(o.candidate) + o.candidateChoise
+	// candidate index relative to the current page start
+	idxWithinPage := o.candidateChoiseWithinPage()
+
+	idxWithinPage += i
+	idxWithinPage %= o.numCandidateCurPage()
+	if idxWithinPage < 0 {
+		idxWithinPage += o.numCandidateCurPage()
+	}
+
+	o.updateAbsoluteChoise(idxWithinPage)
+}
+
+func (o *opCompleter) nextLine() {
+	colNum := 1
+	if o.candidateColNum > 1 {
+		colNum = o.candidateColNum
+	}
+
+	idxWithinPage := o.candidateChoiseWithinPage()
+
+	idxWithinPage += colNum
+	if idxWithinPage >= o.getMatrixSize() {
+		idxWithinPage -= o.getMatrixSize()
+	} else if idxWithinPage >= o.numCandidateCurPage() {
+		idxWithinPage += colNum
+		idxWithinPage -= o.getMatrixSize()
+	}
+
+	o.updateAbsoluteChoise(idxWithinPage)
+}
+
+func (o *opCompleter) prevLine() {
+	colNum := 1
+	if o.candidateColNum > 1 {
+		colNum = o.candidateColNum
+	}
+
+	idxWithinPage := o.candidateChoiseWithinPage()
+
+	idxWithinPage -= colNum
+	if idxWithinPage < 0 {
+		idxWithinPage += o.getMatrixSize()
+		if idxWithinPage >= o.numCandidateCurPage() {
+			idxWithinPage -= colNum
+		}
+	}
+
+	o.updateAbsoluteChoise(idxWithinPage)
+}
+
+func (o *opCompleter) lineStart() {
+	if o.candidateColNum > 1 {
+		idxWithinPage := o.candidateChoiseWithinPage()
+		lineOffset := idxWithinPage % o.candidateColNum
+		idxWithinPage -= lineOffset
+		o.updateAbsoluteChoise(idxWithinPage)
+	}
+}
+
+func (o *opCompleter) lineEnd() {
+	if o.candidateColNum > 1 {
+		idxWithinPage := o.candidateChoiseWithinPage()
+		offsetToLineEnd := o.candidateColNum - idxWithinPage%o.candidateColNum - 1
+		idxWithinPage += offsetToLineEnd
+		o.updateAbsoluteChoise(idxWithinPage)
+		if o.candidateChoise >= len(o.candidate) {
+			o.candidateChoise = len(o.candidate) - 1
+		}
+	}
+}
+
+func (o *opCompleter) nextPage() {
+	// Check that this is not the last page already
+	nextPageStart := o.candidatePageStart[o.curPage+1]
+	if nextPageStart < len(o.candidate) {
+		o.curPage += 1
+		o.candidateChoise = o.candidatePageStart[o.curPage]
+	}
+}
+
+func (o *opCompleter) prevPage() {
+	if o.curPage > 0 {
+		o.curPage -= 1
+		o.candidateChoise = o.candidatePageStart[o.curPage]
 	}
 }
 
@@ -138,10 +228,6 @@ func (o *opCompleter) IsInCompleteMode() bool {
 	return o.inCompleteMode.Load() == 1
 }
 
-func (o *opCompleter) IsInPagerMode() bool {
-	return o.inPagerMode
-}
-
 func (o *opCompleter) HandleCompleteSelect(r rune) (stayInMode bool) {
 	next := true
 	switch r {
@@ -150,18 +236,9 @@ func (o *opCompleter) HandleCompleteSelect(r rune) (stayInMode bool) {
 		o.op.buf.WriteRunes(o.candidate[o.candidateChoise])
 		o.ExitCompleteMode(false)
 	case CharLineStart:
-		if o.candidateColNum > 1 {
-			num := o.candidateChoise % o.candidateColNum
-			o.nextCandidate(-num)
-		}
+		o.lineStart()
 	case CharLineEnd:
-		if o.candidateColNum > 1 {
-			num := o.candidateColNum - o.candidateChoise%o.candidateColNum - 1
-			o.candidateChoise += num
-			if o.candidateChoise >= len(o.candidate) {
-				o.candidateChoise = len(o.candidate) - 1
-			}
-		}
+		o.lineEnd()
 	case CharBackspace:
 		o.ExitCompleteSelectMode()
 		next = false
@@ -171,33 +248,15 @@ func (o *opCompleter) HandleCompleteSelect(r rune) (stayInMode bool) {
 		o.ExitCompleteMode(true)
 		next = false
 	case CharNext:
-		colNum := 1
-		if o.candidateColNum > 1 {
-			colNum = o.candidateColNum
-		}
-		tmpChoise := o.candidateChoise + colNum
-		if tmpChoise >= o.getMatrixSize() {
-			tmpChoise -= o.getMatrixSize()
-		} else if tmpChoise >= len(o.candidate) {
-			tmpChoise += colNum
-			tmpChoise -= o.getMatrixSize()
-		}
-		o.candidateChoise = tmpChoise
+		o.nextLine()
 	case CharBackward, MetaShiftTab:
 		o.nextCandidate(-1)
 	case CharPrev:
-		colNum := 1
-		if o.candidateColNum > 1 {
-			colNum = o.candidateColNum
-		}
-		tmpChoise := o.candidateChoise - colNum
-		if tmpChoise < 0 {
-			tmpChoise += o.getMatrixSize()
-			if tmpChoise >= len(o.candidate) {
-				tmpChoise -= colNum
-			}
-		}
-		o.candidateChoise = tmpChoise
+		o.prevLine()
+	case 'j', 'J':
+		o.prevPage()
+	case 'k', 'K':
+		o.nextPage()
 	default:
 		next = false
 		o.ExitCompleteSelectMode()
@@ -209,35 +268,36 @@ func (o *opCompleter) HandleCompleteSelect(r rune) (stayInMode bool) {
 	return false
 }
 
-// HandlePagerMode handles user input when in pager mode.
-// The user can only press certain keys either viewing another
-// page or quitting the pager and going back to the prompt.
-// returns true if we are still in pager mode or false if
-// we exit pager mode.
-func (o *opCompleter) HandlePagerMode(r rune) (stayInMode bool) {
-	switch r {
-	case ' ', 'Y', 'y': // yes, show me more
-		return o.pagerRefresh() // last page exits
-	case 'q', 'Q', 'N', 'n': // no, quit giving me more
-		o.scrollOutOfPagerMode() // adjust for prompt
-		o.ExitCompleteMode(true) // completely exit complete mode
-		return false
-	default: // invalid choice
-		o.op.t.Bell() // ring bell
-		return true   // stay in pager mode
-	}
-}
-
 func (o *opCompleter) getMatrixSize() int {
 	colNum := 1
 	if o.candidateColNum > 1 {
 		colNum = o.candidateColNum
 	}
-	line := len(o.candidate) / colNum
-	if len(o.candidate)%colNum != 0 {
-		line++
-	}
+	line := o.getMatrixNumRows()
 	return line * colNum
+}
+
+func (o *opCompleter) numCandidateCurPage() int {
+	// Safety: we will always render the first page, and whenever we finished rendering page i,
+	// we always populate o.candidatePageStart through at least i + 1, so when this is called, we
+	// always know the start of the next page
+	return o.candidatePageStart[o.curPage+1] - o.candidatePageStart[o.curPage]
+}
+
+// Get number of rows for a full matrix
+func (o *opCompleter) getMatrixNumRows() int {
+	candidateCurPage := o.numCandidateCurPage()
+	// Normal case where there is no wrap
+	if o.candidateColNum > 1 {
+		numLine := candidateCurPage / o.candidateColNum
+		if candidateCurPage%o.candidateColNum != 0 {
+			numLine++
+		}
+		return numLine
+	}
+
+	// Now since there are wraps, each candidate will be put on its own line, so the number of lines is just the number of candidate
+	return candidateCurPage
 }
 
 // setColumnInfo calculates column width and number of columns required
@@ -268,39 +328,6 @@ func (o *opCompleter) setColumnInfo() {
 	o.candidateColWidth = colWidth
 }
 
-// needPagerMode returns true if number of candidates would go off the page
-func (o *opCompleter) needPagerMode() bool {
-	tWidth, tHeight := o.w.GetWidthHeight()
-	buflineCnt := o.op.buf.LineCount() // lines taken by buffer content
-	linesAvail := tHeight - buflineCnt // lines available without scrolling buffer off screen
-	if o.candidateColNum > 0 {
-		// Normal case where each candidate at least fits on a line
-		maxOrPage := linesAvail * o.candidateColNum // max candiates without needing to page
-		return len(o.candidate) > maxOrPage
-	}
-
-	same := o.op.buf.RuneSlice(-o.candidateOff)
-	sameWidth := runes.WidthAll(same)
-
-	// 1 or more candidates take up multiple lines
-	lines := 1
-	for _, c := range o.candidate {
-		cWidth := sameWidth + runes.WidthAll(c)
-		cLines := 1
-		if tWidth > 0 {
-			cLines = cWidth / tWidth
-			if cWidth%tWidth > 0 {
-				cLines++
-			}
-		}
-		lines += cLines
-		if lines > linesAvail {
-			return true
-		}
-	}
-	return false
-}
-
 // CompleteRefresh is used for completemode and selectmode
 func (o *opCompleter) CompleteRefresh() {
 	if !o.IsInCompleteMode() {
@@ -319,7 +346,10 @@ func (o *opCompleter) CompleteRefresh() {
 	colIdx := 0
 	lines := 0
 	sameWidth := runes.WidthAll(same)
-	for idx, c := range o.candidate {
+
+	idx := o.candidatePageStart[o.curPage]
+	for ; idx < len(o.candidate); idx++ {
+		c := o.candidate[idx]
 		inSelect := idx == o.candidateChoise && o.IsInCompleteSelectMode()
 		cWidth := sameWidth + runes.WidthAll(c)
 		cLines := 1
@@ -333,6 +363,16 @@ func (o *opCompleter) CompleteRefresh() {
 				cLines++
 			}
 		}
+
+		// If the candidate is written, it will overflow the current page, so
+		// we know that it is the start of the next page
+		if colIdx+1 >= o.candidateColNum && lines+cLines > o.linesAvail {
+			if o.curPage == len(o.candidatePageStart)-1 {
+				o.candidatePageStart = append(o.candidatePageStart, idx)
+			}
+			break
+		}
+
 		if lines > 0 && colIdx == 0 {
 			// After line 1, if we're printing to the first column
 			// goto a new line. We do it here, instead of at the end
@@ -366,97 +406,26 @@ func (o *opCompleter) CompleteRefresh() {
 			}
 		}
 	}
+
+	if idx == len(o.candidate) {
+		// This is the last page
+		o.candidatePageStart = append(o.candidatePageStart, len(o.candidate))
+	}
+
 	if colIdx > 0 {
 		lines++ // mid-line so count it.
+	}
+
+	// Show guidance if there are more than one page
+	if idx != len(o.candidate) || o.curPage > 0 {
+		buf.WriteString("\n-- (j: prev page) (k: next page) --")
+		lines++
 	}
 
 	// wrote out choices over "lines", move back to cursor (positioned at index)
 	fmt.Fprintf(buf, "\033[%dA", lines)
 	buf.Write(o.op.buf.getBackspaceSequence())
 	buf.Flush()
-}
-
-// pagerRefresh writes a page full of candidates starting from candidateChoise to the screen
-// followed by --More-- if there are more candidates or exiting complete mode entirely if done
-// after which the prompt would be printed below the list (similar to bash). This is different
-// to CompleteMode and CompleteSelectMode which leave the prompt on the same page and need
-// to reset the cursor back up it after drawing the list.
-func (o *opCompleter) pagerRefresh() (stayInMode bool) {
-	buf := bufio.NewWriter(o.w)
-	firstPage := o.candidateChoise == 0
-	if firstPage {
-		o.op.buf.SetOffset(cursorPosition{1, 1}) // paging, so reset any prompt offset
-		// move down from cursor to where candidates should start
-		lineCnt := o.op.buf.CursorLineCount()
-		buf.Write(bytes.Repeat([]byte("\n"), lineCnt))
-	} else {
-		// after first page, redraw over --More--
-		buf.WriteString("\r")
-	}
-	buf.WriteString("\033[J") // clear anything below
-
-	same := o.op.buf.RuneSlice(-o.candidateOff)
-	sameWidth := runes.WidthAll(same)
-	tWidth, tHeight := o.w.GetWidthHeight()
-
-	colIdx := 0
-	lines := 1
-	for ; o.candidateChoise < len(o.candidate); o.candidateChoise++ {
-		c := o.candidate[o.candidateChoise]
-		cWidth := sameWidth + runes.WidthAll(c)
-		cLines := 1
-		if tWidth > 0 {
-			cLines = cWidth / tWidth
-			if cWidth%tWidth > 0 {
-				cLines++
-			}
-		}
-		if lines > 1 && lines+cLines > tHeight {
-			break // won't fit on page, stop early.
-		}
-		buf.WriteString(string(same))
-		buf.WriteString(string(c))
-		if o.candidateColNum > 1 {
-			// only output spaces between columns if more than 1
-			buf.Write(bytes.Repeat([]byte(" "), o.candidateColWidth-cWidth))
-		}
-		colIdx++
-		if colIdx >= o.candidateColNum {
-			if platform.IsWindows {
-				// Windows EOL edge-case.
-				buf.WriteString("\b")
-			}
-			buf.WriteString("\n")
-			lines += cLines
-			colIdx = 0
-		}
-	}
-	if colIdx != 0 {
-		buf.WriteString("\n")
-	}
-	if firstPage || o.candidateChoise < len(o.candidate) {
-		stayInMode = true
-		buf.WriteString("--More--")
-	} else {
-		stayInMode = false
-		o.scrollOutOfPagerMode()
-		o.ExitCompleteMode(true)
-	}
-	buf.Flush()
-	return
-}
-
-// scrollOutOfPagerMode adds enough new lines after the pager content such that when
-// we rewrite the prompt it does not over write the page content. The code to rewrite
-// the prompt assumes the cursor is at the index line, so we add enough blank lines.
-func (o *opCompleter) scrollOutOfPagerMode() {
-	tWidth, _ := o.w.GetWidthHeight()
-	lineCnt := o.op.buf.IdxLine(tWidth)
-	if lineCnt > 0 {
-		buf := bufio.NewWriter(o.w)
-		buf.Write(bytes.Repeat([]byte("\n"), lineCnt))
-		buf.Flush()
-	}
 }
 
 func (o *opCompleter) EnterCompleteSelectMode() {
@@ -469,17 +438,16 @@ func (o *opCompleter) EnterCompleteMode(offset int, candidate [][]rune) {
 	o.candidate = candidate
 	o.candidateOff = offset
 	o.setColumnInfo()
-	if o.needPagerMode() {
-		o.EnterPagerMode()
-	} else {
-		o.CompleteRefresh()
-	}
+	o.initPage()
+	o.CompleteRefresh()
 }
 
-func (o *opCompleter) EnterPagerMode() {
-	o.inPagerMode = true
-	o.candidateChoise = 0 // next candidate to list on next page
-	o.pagerRefresh()
+func (o *opCompleter) initPage() {
+	_, tHeight := o.w.GetWidthHeight()
+	buflineCnt := o.op.buf.LineCount()      // lines taken by buffer content
+	o.linesAvail = tHeight - buflineCnt - 2 // lines available without scrolling buffer off screen, reserve some space for the guidance
+	o.candidatePageStart = []int{0}         // first page always start at 0
+	o.curPage = 0
 }
 
 func (o *opCompleter) ExitCompleteSelectMode() {
@@ -493,9 +461,4 @@ func (o *opCompleter) ExitCompleteMode(revent bool) {
 	o.candidateOff = -1
 	o.candidateSource = nil
 	o.ExitCompleteSelectMode()
-	o.ExitPagerMode()
-}
-
-func (o *opCompleter) ExitPagerMode() {
-	o.inPagerMode = false
 }
