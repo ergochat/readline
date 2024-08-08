@@ -27,7 +27,14 @@ type Completor struct{}
 func (c *Completor) Do(line []rune, pos int) ([][]rune, int) {
 	completion := make([][]rune, 0, 10000)
 	for i := 0; i < 1000; i += 1 {
-		s := fmt.Sprintf("%s%020d", randSeq(1), i)
+		var s string
+		if i%2 == 0 {
+			s = fmt.Sprintf("%s%05d", randSeq(1), i)
+		} else if i%3 == 0 {
+			s = fmt.Sprintf("%s%010d", randSeq(1), i)
+		} else {
+			s = fmt.Sprintf("%s%07d", randSeq(1), i)
+		}
 		completion = append(completion, []rune(s))
 	}
 	return completion, pos
