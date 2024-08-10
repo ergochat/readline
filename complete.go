@@ -52,7 +52,7 @@ func (o *opCompleter) doSelect() {
 		o.ExitCompleteMode(false)
 		return
 	}
-	o.nextCandidateInPage(1)
+	o.nextCandidate()
 	o.CompleteRefresh()
 }
 
@@ -66,18 +66,40 @@ func (o *opCompleter) updateAbsolutechoice(choiceWithinPage int) {
 	o.candidateChoice = choiceWithinPage + o.pageStartIdx[o.curPage]
 }
 
-// Move selection to the next ith candidate in page
-func (o *opCompleter) nextCandidateInPage(i int) {
-	// candidate index relative to the current page start
-	idxWithinPage := o.candidateChoiceWithinPage()
-
-	idxWithinPage += i
-	idxWithinPage %= o.numCandidateCurPage()
-	if idxWithinPage < 0 {
-		idxWithinPage += o.numCandidateCurPage()
+// Move selection to the next candidate, updating page if necessary
+// Note: we don't allow passing arbitrary offset to this function because, e.g.,
+// we don't have the 3rd page offset initialized when the user is just seeing the first page,
+// so we only allow users to navigate into the 2nd page but not to an arbirary page as a result
+// of calling this method
+func (o *opCompleter) nextCandidate() {
+	o.candidateChoice = (o.candidateChoice + 1) % len(o.candidate)
+	// Wrapping around
+	if o.candidateChoice == 0 {
+		o.curPage = 0
+		return
 	}
+	// Going to next page
+	if o.candidateChoice == o.pageStartIdx[o.curPage+1] {
+		o.curPage += 1
+	}
+}
 
-	o.updateAbsolutechoice(idxWithinPage)
+// Move selection to the next ith col in the current line, wrapping to the line start/end if needed
+func (o *opCompleter) nextCol(i int) {
+	// If o.candidateColNum == 1 or 0, there is only one col per line and this is a noop
+	if o.candidateColNum > 1 {
+		idxWithinPage := o.candidateChoiceWithinPage()
+		curLine := idxWithinPage / o.candidateColNum
+		offsetInLine := idxWithinPage % o.candidateColNum
+		nextOffset := offsetInLine + i
+		nextOffset %= o.candidateColNum
+		if nextOffset < 0 {
+			nextOffset += o.candidateColNum
+		}
+
+		nextIdxWithinPage := curLine*o.candidateColNum + nextOffset
+		o.updateAbsolutechoice(nextIdxWithinPage)
+	}
 }
 
 // Move selection to the line below
@@ -251,15 +273,17 @@ func (o *opCompleter) HandleCompleteSelect(r rune) (stayInMode bool) {
 	case CharBackspace:
 		o.ExitCompleteSelectMode()
 		next = false
-	case CharTab, CharForward:
-		o.nextCandidateInPage(1)
+	case CharTab:
+		o.nextCandidate()
+	case CharForward:
+		o.nextCol(1)
 	case CharBell, CharInterrupt:
 		o.ExitCompleteMode(true)
 		next = false
 	case CharNext:
 		o.nextLine()
 	case CharBackward, MetaShiftTab:
-		o.nextCandidateInPage(-1)
+		o.nextCol(-1)
 	case CharPrev:
 		o.prevLine()
 	case 'j', 'J':
