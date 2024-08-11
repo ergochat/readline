@@ -384,6 +384,15 @@ func (o *opCompleter) CompleteRefresh() {
 	// Show completions for the current page
 	idx := o.pageStartIdx[o.curPage]
 	for ; idx < len(o.candidate); idx++ {
+		// If writing the current candidate would overflow the page,
+		// we know that it is the start of the next page.
+		if colIdx == 0 && lines == o.linesAvail {
+			if o.curPage == len(o.pageStartIdx)-1 {
+				o.pageStartIdx = append(o.pageStartIdx, idx)
+			}
+			break
+		}
+
 		c := o.candidate[idx]
 		inSelect := idx == o.candidateChoice && o.IsInCompleteSelectMode()
 		cWidth := sameWidth + runes.WidthAll(c)
@@ -397,15 +406,6 @@ func (o *opCompleter) CompleteRefresh() {
 			if (cWidth+sWidth)%tWidth > 0 {
 				cLines++
 			}
-		}
-
-		// If writing the current candidate would overflow the page,
-		// we know that it is the start of the next page.
-		if colIdx+1 >= o.candidateColNum && lines+cLines > o.linesAvail {
-			if o.curPage == len(o.pageStartIdx)-1 {
-				o.pageStartIdx = append(o.pageStartIdx, idx)
-			}
-			break
 		}
 
 		if lines > 0 && colIdx == 0 {
@@ -480,7 +480,7 @@ func (o *opCompleter) EnterCompleteMode(offset int, candidate [][]rune) {
 func (o *opCompleter) initPage() {
 	_, tHeight := o.w.GetWidthHeight()
 	buflineCnt := o.op.buf.LineCount()      // lines taken by buffer content
-	o.linesAvail = tHeight - buflineCnt - 2 // lines available without scrolling buffer off screen, reserve some space for the guidance message
+	o.linesAvail = tHeight - buflineCnt - 1 // lines available without scrolling buffer off screen, reserve one line for the guidance message
 	o.pageStartIdx = []int{0}               // first page always start at 0
 	o.curPage = 0
 }
