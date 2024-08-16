@@ -386,9 +386,9 @@ func (t *terminal) consumeANSIEscape(buf *bufio.Reader, ansiBuf *bytes.Buffer) (
 			switch string(ansiBuf.Bytes()) {
 			case "3":
 				r = MetaDeleteKey // this is the key typically labeled "Delete"
-			case "7":
+			case "1", "7":
 				r = CharLineStart // "Home" key
-			case "8":
+			case "4", "8":
 				r = CharLineEnd // "End" key
 			}
 		}
