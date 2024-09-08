@@ -9,3 +9,4 @@ Here are some guidelines for APIs that have been removed or changed:
 * The preferred name for `NewEx` is now `NewFromConfig` (`NewEx` is provided as a compatibility alias).
 * The preferred name for `(*Instance).Readline` is now `ReadLine` (`Readline` is provided as a compatibility alias).
 * `PrefixCompleterInterface` was removed in favor of exposing `PrefixCompleter` as a concrete struct type. In general, references to `PrefixCompleterInterface` can be changed to `*PrefixCompleter`.
+* `(Config).ForceUseInteractive` has been removed. Instead, set `(Config).FuncIsTerminal` to `func() bool { return true }`.

@@ -61,15 +61,14 @@ type Config struct {
 	Undo bool
 
 	// These fields allow customizing terminal handling. Most clients should ignore them.
-	Stdin               io.Reader
-	Stdout              io.Writer
-	Stderr              io.Writer
-	FuncIsTerminal      func() bool
-	FuncMakeRaw         func() error
-	FuncExitRaw         func() error
-	FuncGetSize         func() (width int, height int)
-	FuncOnWidthChanged  func(func())
-	ForceUseInteractive bool
+	Stdin              io.Reader
+	Stdout             io.Writer
+	Stderr             io.Writer
+	FuncIsTerminal     func() bool
+	FuncMakeRaw        func() error
+	FuncExitRaw        func() error
+	FuncGetSize        func() (width int, height int)
+	FuncOnWidthChanged func(func())
 
 	// private fields
 	inited        bool
@@ -126,7 +125,7 @@ func (c *Config) init() error {
 		c.Painter = defaultPainter
 	}
 
-	c.isInteractive = c.ForceUseInteractive || c.FuncIsTerminal()
+	c.isInteractive = c.FuncIsTerminal()
 
 	return nil
 }
