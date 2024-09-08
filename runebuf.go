@@ -87,9 +87,6 @@ func (r *runeBuffer) Len() int {
 
 func (r *runeBuffer) MoveToLineStart() {
 	r.Refresh(func() {
-		if r.idx == 0 {
-			return
-		}
 		r.idx = 0
 	})
 }
@@ -248,21 +245,23 @@ func (r *runeBuffer) Kill() {
 
 func (r *runeBuffer) Transpose() {
 	r.Refresh(func() {
-		if len(r.buf) == 1 {
-			r.idx++
-		}
-
-		if len(r.buf) < 2 {
+		if r.idx == 0 {
+			// match the GNU Readline behavior, Ctrl-T at the start of the line
+			// is a no-op:
 			return
 		}
 
-		if r.idx == 0 {
-			r.idx = 1
-		} else if r.idx >= len(r.buf) {
-			r.idx = len(r.buf) - 1
+		// OK, we have at least one character behind us:
+		if r.idx < len(r.buf) {
+			// swap the character in front of us with the one behind us
+			r.buf[r.idx], r.buf[r.idx-1] = r.buf[r.idx-1], r.buf[r.idx]
+			// advance the cursor
+			r.idx++
+		} else if r.idx == len(r.buf) && len(r.buf) >= 2 {
+			// swap the two characters behind us
+			r.buf[r.idx-2], r.buf[r.idx-1] = r.buf[r.idx-1], r.buf[r.idx-2]
+			// leave the cursor in place since there's nowhere to go
 		}
-		r.buf[r.idx], r.buf[r.idx-1] = r.buf[r.idx-1], r.buf[r.idx]
-		r.idx++
 	})
 }
 
