@@ -468,11 +468,10 @@ func (o *operation) GenPasswordConfig() *Config {
 		Stdout: baseConfig.Stdout,
 		Stderr: baseConfig.Stderr,
 
-		FuncIsTerminal:      baseConfig.FuncIsTerminal,
-		FuncMakeRaw:         baseConfig.FuncMakeRaw,
-		FuncExitRaw:         baseConfig.FuncExitRaw,
-		FuncOnWidthChanged:  baseConfig.FuncOnWidthChanged,
-		ForceUseInteractive: baseConfig.ForceUseInteractive,
+		FuncIsTerminal:     baseConfig.FuncIsTerminal,
+		FuncMakeRaw:        baseConfig.FuncMakeRaw,
+		FuncExitRaw:        baseConfig.FuncExitRaw,
+		FuncOnWidthChanged: baseConfig.FuncOnWidthChanged,
 	}
 }
 

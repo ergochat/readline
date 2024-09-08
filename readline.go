@@ -19,54 +19,56 @@ type Instance struct {
 }
 
 type Config struct {
-	// prompt supports ANSI escape sequence, so we can color some characters even in windows
+	// Prompt is the input prompt (ANSI escape sequences are supported on all platforms)
 	Prompt string
 
-	// readline will persist historys to file where HistoryFile specified
+	// HistoryFile is the path to the file where persistent history will be stored
+	// (empty string disables).
 	HistoryFile string
-	// specify the max length of historys, it's 500 by default, set it to -1 to disable history
+	// HistoryLimit is the maximum number of history entries to store. If it is 0
+	// or unset, the default value is 500; set to -1 to disable.
 	HistoryLimit           int
 	DisableAutoSaveHistory bool
-	// enable case-insensitive history searching
+	// HistorySearchFold enables case-insensitive history searching.
 	HistorySearchFold bool
 
-	// AutoCompleter will called once user press TAB
+	// AutoComplete defines the tab-completion behavior. See the documentation for
+	// the AutoCompleter interface for details.
 	AutoComplete AutoCompleter
 
 	// Listener is an optional callback to intercept keypresses.
 	Listener Listener
 
+	// Painter is an optional callback to rewrite the buffer for display.
 	Painter Painter
 
-	// If VimMode is true, readline will in vim.insert mode by default
+	// FuncFilterInputRune is an optional callback to translate keyboard inputs;
+	// it takes in the input rune and returns (translation, ok). If ok is false,
+	// the rune is skipped.
+	FuncFilterInputRune func(rune) (rune, bool)
+
+	// VimMode enables Vim-style insert mode by default.
 	VimMode bool
 
 	InterruptPrompt string
 	EOFPrompt       string
 
-	// Function that returns width, height of the terminal or -1,-1 if unknown
-	FuncGetSize func() (width int, height int)
-
-	Stdin  io.Reader
-	Stdout io.Writer
-	Stderr io.Writer
-
 	EnableMask bool
 	MaskRune   rune
 
-	// Whether to maintain an undo buffer (Ctrl+_ to undo if enabled)
+	// Undo controls whether to maintain an undo buffer (if enabled,
+	// Ctrl+_ will undo the previous action).
 	Undo bool
 
-	// filter input runes (may be used to disable CtrlZ or for translating some keys to different actions)
-	// -> output = new (translated) rune and true/false if continue with processing this one
-	FuncFilterInputRune func(rune) (rune, bool)
-
-	// force use interactive even stdout is not a tty
-	FuncIsTerminal      func() bool
-	FuncMakeRaw         func() error
-	FuncExitRaw         func() error
-	FuncOnWidthChanged  func(func())
-	ForceUseInteractive bool
+	// These fields allow customizing terminal handling. Most clients should ignore them.
+	Stdin              io.Reader
+	Stdout             io.Writer
+	Stderr             io.Writer
+	FuncIsTerminal     func() bool
+	FuncMakeRaw        func() error
+	FuncExitRaw        func() error
+	FuncGetSize        func() (width int, height int)
+	FuncOnWidthChanged func(func())
 
 	// private fields
 	inited        bool
@@ -123,7 +125,7 @@ func (c *Config) init() error {
 		c.Painter = defaultPainter
 	}
 
-	c.isInteractive = c.ForceUseInteractive || c.FuncIsTerminal()
+	c.isInteractive = c.FuncIsTerminal()
 
 	return nil
 }
