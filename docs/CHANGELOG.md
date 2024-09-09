@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3] - 2024-09-02
+
+* It is now possible to select and navigate through tab-completion candidates in pager mode (#65, #66, thanks [@YangchenYe323](https://github.com/YangchenYe323)!)
+* Fixed Home and End keys in certain terminals and multiplexers (#67, #68)
+* Fixed crashing edge cases in the Ctrl-T "transpose characters" operation (#69, #70)
+* Removed `(Config).ForceUseInteractive`; instead `(Config).FuncIsTerminal` can be set to `func() bool { return true }`
+
 ## [0.1.2] - 2024-07-04
 
 * Fixed skipping between words with Alt+{Left,Right} and Alt+{b,f} (#59, #63)
