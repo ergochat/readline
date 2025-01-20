@@ -3,7 +3,6 @@ package readline
 import (
 	"bufio"
 	"container/list"
-	"fmt"
 	"os"
 	"strings"
 	"sync"
@@ -236,7 +235,7 @@ func (o *opHistory) Enable() {
 func (o *opHistory) debug() {
 	debugPrint("-------")
 	for item := o.history.Front(); item != nil; item = item.Next() {
-		debugPrint(fmt.Sprintf("%+v", item.Value))
+		debugPrint("%+v", item.Value)
 	}
 }
 
