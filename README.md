@@ -1,7 +1,7 @@
 readline
 ========
 
-[![Godoc](https://godoc.org/github.com/ergochat/readline?status.svg)](https://godoc.org/github.com/ergochat/readline)
+[![Godoc](https://godoc.org/github.com/cogentcore/readline?status.svg)](https://godoc.org/github.com/cogentcore/readline)
 
 This is a pure Go implementation of functionality comparable to [GNU Readline](https://en.wikipedia.org/wiki/GNU_Readline), i.e. line editing and command history for simple TUI programs.
 
@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/ergochat/readline"
+	"github.com/cogentcore/readline"
 )
 
 func main() {

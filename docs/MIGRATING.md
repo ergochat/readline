@@ -1,6 +1,6 @@
 # Migrating
 
-ergochat/readline is largely API-compatible with the most commonly used functionality of chzyer/readline. See our [godoc page](https://pkg.go.dev/github.com/ergochat/readline) for the current state of the public API; if an API you were using has been removed, its replacement may be readily apparent.
+ergochat/readline is largely API-compatible with the most commonly used functionality of chzyer/readline. See our [godoc page](https://pkg.go.dev/github.com/cogentcore/readline) for the current state of the public API; if an API you were using has been removed, its replacement may be readily apparent.
 
 Here are some guidelines for APIs that have been removed or changed:
 

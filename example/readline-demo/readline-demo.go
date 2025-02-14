@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ergochat/readline"
+	"github.com/cogentcore/readline"
 )
 
 func usage(w io.Writer) {

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/ergochat/readline/internal/platform"
+	"github.com/cogentcore/readline/internal/platform"
 )
 
 type Instance struct {

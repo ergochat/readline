@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/ergochat/readline/internal/runes"
+	"github.com/cogentcore/readline/internal/runes"
 )
 
 // PrefixCompleter implements AutoCompleter via a recursive tree.

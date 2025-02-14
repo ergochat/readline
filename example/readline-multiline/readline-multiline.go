@@ -3,7 +3,7 @@ package main
 import (
 	"strings"
 
-	"github.com/ergochat/readline"
+	"github.com/cogentcore/readline"
 )
 
 func main() {

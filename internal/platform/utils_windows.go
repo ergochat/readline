@@ -5,7 +5,7 @@ package platform
 import (
 	"syscall"
 
-	"github.com/ergochat/readline/internal/term"
+	"github.com/cogentcore/readline/internal/term"
 )
 
 const (
