@@ -11,8 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ergochat/readline/internal/ansi"
-	"github.com/ergochat/readline/internal/platform"
+	"github.com/cogentcore/readline/internal/ansi"
+	"github.com/cogentcore/readline/internal/platform"
 )
 
 const (

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/ergochat/readline/internal/platform"
-	"github.com/ergochat/readline/internal/runes"
+	"github.com/cogentcore/readline/internal/platform"
+	"github.com/cogentcore/readline/internal/runes"
 )
 
 type AutoCompleter interface {

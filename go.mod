@@ -1,4 +1,4 @@
-module github.com/ergochat/readline
+module github.com/cogentcore/readline
 
 go 1.19
 

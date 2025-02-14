@@ -1,7 +1,7 @@
 package readline
 
 import (
-	"github.com/ergochat/readline/internal/ringbuf"
+	"github.com/cogentcore/readline/internal/ringbuf"
 )
 
 type undoEntry struct {

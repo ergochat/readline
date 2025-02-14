@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ergochat/readline/internal/runes"
+	"github.com/cogentcore/readline/internal/runes"
 )
 
 type runeBuffer struct {

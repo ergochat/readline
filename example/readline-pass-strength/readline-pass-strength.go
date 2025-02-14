@@ -22,7 +22,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/ergochat/readline"
+	"github.com/cogentcore/readline"
 )
 
 const (

@@ -1,4 +1,4 @@
-//go:build windows
+//go:build js
 
 package platform
 
@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	IsWindows = true
+	IsWindows = false
 )
 
 func SuspendProcess() {
@@ -34,5 +34,4 @@ func DefaultOnWidthChanged(f func()) {
 }
 
 func DefaultOnSizeChanged(f func()) {
-	// TODO: does Windows have a SIGWINCH analogue?
 }
