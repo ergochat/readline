@@ -7,6 +7,7 @@ This is a pure Go implementation of functionality comparable to [GNU Readline](h
 
 It is a fork of [chzyer/readline](https://github.com/chzyer/readline).
 
+
 * Relative to the upstream repository, it is actively maintained and has numerous bug fixes
    - See our [changelog](docs/CHANGELOG.md) for details on fixes and improvements
    - See our [migration guide](docs/MIGRATING.md) for advice on how to migrate from upstream
