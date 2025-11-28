@@ -326,6 +326,10 @@ func (t *terminal) consumeANSIEscape(buf *bufio.Reader, ansiBuf *bytes.Buffer) (
 	case 'b':
 		// Alt-b in xterm, or Option+LeftArrow in iTerm2 with "Natural text editing"
 		return readResult{r: MetaBackward, ok: true}, nil // Alt-b
+	case '\b', 0x7f:
+		// Alt-Backspace in many terminals is sent as ESC + Backspace or ESC + DEL.
+		// Treat this as word-wise backspace.
+		return readResult{r: MetaBackspace, ok: true}, nil
 	case '[', 'O':
 		// this is a real ANSI escape sequence, read the rest of the sequence below:
 	case '\x1b':
@@ -429,9 +433,12 @@ func consumeAltSequence(buf *bufio.Reader) (result readResult, err error) {
 func altModifierEnabled(payload []byte) bool {
 	// https://www.xfree86.org/current/ctlseqs.html ; modifier keycodes
 	// go after the semicolon, e.g. Alt-LeftArrow is `\x1b[1;3D` in VTE
-	// terminals, where 3 indicates Alt
+	// terminals, where 3 indicates Alt. Use the same word-wise behavior for
+	// Ctrl-Left/Right (modifier 5) and Alt+Ctrl (modifier 7), since readline
+	// doesn't distinguish them at a higher level.
 	if semicolonIdx := bytes.IndexByte(payload, ';'); semicolonIdx != -1 {
-		if string(payload[semicolonIdx+1:]) == "3" {
+		switch string(payload[semicolonIdx+1:]) {
+		case "3", "5", "7":
 			return true
 		}
 	}
