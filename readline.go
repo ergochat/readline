@@ -222,6 +222,14 @@ func (i *Instance) SetDefault(defaultValue string) {
 	i.operation.SetBuffer(defaultValue)
 }
 
+// SetBufferWithCursor prefills the buffer for the next call to Readline()
+// or related methods, placing the cursor at the given rune offset pos, which
+// is clamped to the bounds of line. The value will appear after the prompt
+// for the user to edit.
+func (i *Instance) SetBufferWithCursor(line string, pos int) {
+	i.operation.SetBufferWithCursor(line, pos)
+}
+
 func (i *Instance) ReadLineWithDefault(defaultValue string) (string, error) {
 	i.SetDefault(defaultValue)
 	return i.operation.String()

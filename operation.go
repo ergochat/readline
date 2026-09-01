@@ -34,6 +34,16 @@ func (o *operation) SetBuffer(what string) {
 	o.buf.SetNoRefresh([]rune(what))
 }
 
+func (o *operation) SetBufferWithCursor(line string, pos int) {
+	runes := []rune(line)
+	if pos < 0 {
+		pos = 0
+	} else if pos > len(runes) {
+		pos = len(runes)
+	}
+	o.buf.SetNoRefreshWithIdx(pos, runes)
+}
+
 type wrapWriter struct {
 	o      *operation
 	target io.Writer
