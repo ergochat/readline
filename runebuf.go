@@ -395,6 +395,26 @@ func (r *runeBuffer) isInLineEdge() bool {
 	return len(sp[len(sp)-1]) == 0 // last line is 0 len
 }
 
+// promptInLineEdge returns whether the prompt ends at the right edge of the
+// terminal, where the cursor waits to wrap to the next line.
+func (r *runeBuffer) promptInLineEdge() bool {
+	tWidth, _ := r.w.GetWidthHeight()
+	if tWidth <= 0 {
+		return false
+	}
+	pr := runes.ColorFilter([]rune(r.prompt()))
+	start := r.ppos // the prompt starts after any output on its line
+	for i := len(pr) - 1; i >= 0; i-- {
+		if pr[i] == '\n' { // only its last line
+			pr = pr[i+1:]
+			start = 0
+			break
+		}
+	}
+	n := start + runes.WidthAll(pr)
+	return len(pr) > 0 && n%tWidth == 0
+}
+
 func (r *runeBuffer) getSplitByLine(rs []rune, nextWidth int) [][]rune {
 	tWidth, _ := r.w.GetWidthHeight()
 	cfg := r.getConfig()
@@ -518,6 +538,12 @@ func (r *runeBuffer) print() {
 func (r *runeBuffer) output() []byte {
 	buf := bytes.NewBuffer(nil)
 	buf.WriteString(r.prompt())
+	if r.promptInLineEdge() {
+		// the cursor is moved to the next line before the rest of the line
+		// is cleared, which cancels the wrap at the edge (as in xterm), so
+		// that the input would be written over the end of the prompt
+		buf.WriteString(" \b")
+	}
 	buf.WriteString("\x1b[0K") // VT100 "Clear line from cursor right", see #38
 	cfg := r.getConfig()
 	if cfg.EnableMask && len(r.buf) > 0 {
