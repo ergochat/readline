@@ -66,3 +66,38 @@ func TestParseCPRResponse(t *testing.T) {
 		}
 	}
 }
+
+// TestPromptInLineEdge tests that a prompt that ends at the right edge of
+// the terminal moves the cursor to the next line (with " \b") before the
+// rest of the line is cleared, which would cancel the wrap at the edge, so
+// that the input is written after the prompt, not over its end.
+func TestPromptInLineEdge(t *testing.T) {
+	output := func(prompt string, width, ppos int, input string) string {
+		tm := &terminal{}
+		tm.cfg.Store(&Config{Prompt: prompt, Painter: defaultPainter})
+		tm.dimensions.Store(&termDimensions{width: width, height: 24})
+		r := newRuneBuffer(tm)
+		r.ppos = ppos
+		r.buf = []rune(input)
+		r.idx = len(r.buf)
+		return string(r.output())
+	}
+	const clear = "\x1b[0K"
+	for _, c := range []struct {
+		prompt       string
+		width, ppos  int
+		input, wants string
+	}{
+		{"dir > ", 6, 0, "cmd", "dir >  \b" + clear + "cmd"},
+		{"dir > ", 3, 0, "cmd", "dir >  \b" + clear + "cmd \b"}, // two lines, and the input fills one
+		{"dir > ", 10, 4, "cmd", "dir >  \b" + clear + "cmd"},   // after output
+		{"dir > ", 10, 0, "cmd", "dir > " + clear + "cmd"},
+		{"note\ndir > ", 6, 3, "cmd", "note\ndir >  \b" + clear + "cmd"},
+		{"", 6, 0, "cmd", clear + "cmd"},
+	} {
+		got := output(c.prompt, c.width, c.ppos, c.input)
+		if got != c.wants {
+			t.Errorf("prompt %q, width %d, ppos %d: got %q, wants %q", c.prompt, c.width, c.ppos, got, c.wants)
+		}
+	}
+}
